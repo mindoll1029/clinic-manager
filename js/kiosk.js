@@ -156,7 +156,7 @@
         const over = App.isOver(a, now);
         const max = Store.settings().maxExtensions;
         html = '<section class="k-step k-choice">' +
-          '<h1><b>' + esc(s.student.name) + '</b> 학생은<br>휴식 중입니다</h1>' +
+          '<h1><b>' + esc(s.student.name) + '</b> 학생은 휴식 중입니다</h1>' +
           '<p class="k-elapsed' + (over ? ' is-over' : '') + '">' + (over ? window.icon('clock') : '') + '<span>' + App.elapsedText(a.startedAt, now) + ' 사용</span>' + (over ? '<span class="chip chip-over">' + App.overLabel(a) + '</span>' : '') + '</p>' +
           '<div class="k-choices">' +
             '<button type="button" class="k-choice-btn is-primary" data-go="confirmEnd">' + window.icon('logout') + '<b>퇴실하기</b><small>다 쉬었어요</small></button>' +
@@ -170,7 +170,7 @@
         const a = s.student.active;
         html = '<section class="k-step k-confirm">' +
           '<h1>퇴실하겠습니까?</h1>' +
-          '<p class="k-sub"><b>' + esc(s.student.name) + '</b> · ' + esc(App.bedName(a.bedLabel, a.bedTier)) + ' · ' + App.elapsedText(a.startedAt, now) + ' 사용</p>' +
+          '<p class="k-sub"><b>' + esc(s.student.name) + '</b> · ' + App.elapsedText(a.startedAt, now) + ' 사용</p>' +
           '<div class="k-confirm-actions"><button type="button" class="btn btn-ghost btn-xl" data-go="choice">돌아가기</button>' +
           '<button type="button" class="btn btn-primary btn-xl" data-act="end">' + window.icon('check') + '<span>퇴실 확인</span></button></div>' +
         '</section>';
@@ -255,7 +255,7 @@
         try {
           const r = Store.extendSession({ studentNo: state.student.no, code: buf, deviceId: DEVICE });
           App.sound.ok();
-          go({ step: 'done', title: Store.settings().extendMinutes + '분 연장했어요', sub: esc(App.bedName(r.bedLabel, r.bedTier)) + '에서 더 쉬어요. 연장 ' + r.extensionCount + '회째예요.' });
+          go({ step: 'done', title: Store.settings().extendMinutes + '분 연장했어요', sub: '더 쉬어요. 연장 ' + r.extensionCount + '회째예요.' });
         } catch (e) {
           App.sound.error();
           if (e.code === 'MAX_EXT' || e.code === 'NOT_ACTIVE') return go({ step: 'error', message: say(e) });
@@ -307,7 +307,7 @@
         try {
           const r = Store.endSession(state.student.no);
           App.sound.ok();
-          go({ step: 'done', title: '퇴실했어요', sub: esc(App.bedName(r.bedLabel, r.bedTier)) + ' · ' + App.elapsedText(r.startedAt, r.endedAt) + ' 사용<br>몸조리 잘 해요.' });
+          go({ step: 'done', title: '퇴실했어요', sub: App.elapsedText(r.startedAt, r.endedAt) + ' 사용<br>몸조리 잘 해요.' });
         } catch (e) { App.sound.error(); go({ step: 'error', message: say(e) }); }
       }
       keepFocus();
