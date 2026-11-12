@@ -1,0 +1,882 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-10T04:49:57.406Z",
+  "title": "Design System: 보건실 침대 현황",
+  "extensions": {
+    "colorMeta": {
+      "magnet": {
+        "role": "primary",
+        "displayName": "Magnet Yellow",
+        "canonical": "#ffd84d",
+        "cssVar": "--magnet",
+        "tonalRamp": [
+          "oklch(15.0% 0.088 93.0)",
+          "oklch(26.4% 0.134 93.0)",
+          "oklch(37.9% 0.157 93.0)",
+          "oklch(49.3% 0.157 93.0)",
+          "oklch(60.7% 0.157 93.0)",
+          "oklch(72.1% 0.139 93.0)",
+          "oklch(83.6% 0.095 93.0)",
+          "oklch(95.0% 0.033 93.0)"
+        ]
+      },
+      "magnet-edge": {
+        "role": "primary",
+        "displayName": "Magnet Edge Ochre",
+        "canonical": "#d4ac25",
+        "cssVar": "--magnet-edge",
+        "tonalRamp": [
+          "oklch(15.0% 0.082 90.6)",
+          "oklch(26.4% 0.125 90.6)",
+          "oklch(37.9% 0.146 90.6)",
+          "oklch(49.3% 0.146 90.6)",
+          "oklch(60.7% 0.146 90.6)",
+          "oklch(72.1% 0.129 90.6)",
+          "oklch(83.6% 0.088 90.6)",
+          "oklch(95.0% 0.031 90.6)"
+        ]
+      },
+      "magnet-ink": {
+        "role": "primary",
+        "displayName": "Tag Ink",
+        "canonical": "#231f0e",
+        "cssVar": "--magnet-ink",
+        "tonalRamp": [
+          "oklch(15.0% 0.017 96.5)",
+          "oklch(26.4% 0.025 96.5)",
+          "oklch(37.9% 0.030 96.5)",
+          "oklch(49.3% 0.030 96.5)",
+          "oklch(60.7% 0.030 96.5)",
+          "oklch(72.1% 0.026 96.5)",
+          "oklch(83.6% 0.018 96.5)",
+          "oklch(95.0% 0.006 96.5)"
+        ]
+      },
+      "magnet-ink-2": {
+        "role": "primary",
+        "displayName": "Olive Tag Ink",
+        "canonical": "#574812",
+        "cssVar": "--magnet-ink-2",
+        "tonalRamp": [
+          "oklch(15.0% 0.041 92.9)",
+          "oklch(26.4% 0.062 92.9)",
+          "oklch(37.9% 0.073 92.9)",
+          "oklch(49.3% 0.073 92.9)",
+          "oklch(60.7% 0.073 92.9)",
+          "oklch(72.1% 0.065 92.9)",
+          "oklch(83.6% 0.044 92.9)",
+          "oklch(95.0% 0.015 92.9)"
+        ]
+      },
+      "magnet-hover": {
+        "role": "primary",
+        "displayName": "Warm Hover Yellow",
+        "canonical": "#ffcf1f",
+        "cssVar": "--magnet-hover",
+        "tonalRamp": [
+          "oklch(15.0% 0.097 91.1)",
+          "oklch(26.4% 0.148 91.1)",
+          "oklch(37.9% 0.173 91.1)",
+          "oklch(49.3% 0.173 91.1)",
+          "oklch(60.7% 0.173 91.1)",
+          "oklch(72.1% 0.153 91.1)",
+          "oklch(83.6% 0.105 91.1)",
+          "oklch(95.0% 0.036 91.1)"
+        ]
+      },
+      "magnet-tint": {
+        "role": "primary",
+        "displayName": "Yellow Wash",
+        "canonical": "#fffbea",
+        "cssVar": "--magnet-tint",
+        "tonalRamp": [
+          "oklch(15.0% 0.013 96.0)",
+          "oklch(26.4% 0.019 96.0)",
+          "oklch(37.9% 0.023 96.0)",
+          "oklch(49.3% 0.023 96.0)",
+          "oklch(60.7% 0.023 96.0)",
+          "oklch(72.1% 0.020 96.0)",
+          "oklch(83.6% 0.014 96.0)",
+          "oklch(95.0% 0.005 96.0)"
+        ]
+      },
+      "row-active": {
+        "role": "primary",
+        "displayName": "Active Row Cream",
+        "canonical": "#fff9dc",
+        "cssVar": "--row-active",
+        "tonalRamp": [
+          "oklch(15.0% 0.021 97.4)",
+          "oklch(26.4% 0.033 97.4)",
+          "oklch(37.9% 0.038 97.4)",
+          "oklch(49.3% 0.038 97.4)",
+          "oklch(60.7% 0.038 97.4)",
+          "oklch(72.1% 0.034 97.4)",
+          "oklch(83.6% 0.023 97.4)",
+          "oklch(95.0% 0.008 97.4)"
+        ]
+      },
+      "over": {
+        "role": "secondary",
+        "displayName": "Overdue Red",
+        "canonical": "#c62d24",
+        "cssVar": "--over",
+        "tonalRamp": [
+          "oklch(15.0% 0.107 28.7)",
+          "oklch(26.4% 0.163 28.7)",
+          "oklch(37.9% 0.191 28.7)",
+          "oklch(49.3% 0.191 28.7)",
+          "oklch(60.7% 0.191 28.7)",
+          "oklch(72.1% 0.169 28.7)",
+          "oklch(83.6% 0.115 28.7)",
+          "oklch(95.0% 0.040 28.7)"
+        ]
+      },
+      "over-deep": {
+        "role": "secondary",
+        "displayName": "Deep Overdue Red",
+        "canonical": "#9e2019",
+        "cssVar": "--over-deep",
+        "tonalRamp": [
+          "oklch(15.0% 0.091 28.7)",
+          "oklch(26.4% 0.139 28.7)",
+          "oklch(37.9% 0.163 28.7)",
+          "oklch(49.3% 0.163 28.7)",
+          "oklch(60.7% 0.163 28.7)",
+          "oklch(72.1% 0.144 28.7)",
+          "oklch(83.6% 0.098 28.7)",
+          "oklch(95.0% 0.034 28.7)"
+        ]
+      },
+      "over-ink": {
+        "role": "secondary",
+        "displayName": "Red-Side White",
+        "canonical": "#ffffff",
+        "cssVar": "--over-ink",
+        "tonalRamp": [
+          "oklch(15.0% 0.000 0.0)",
+          "oklch(26.4% 0.000 0.0)",
+          "oklch(37.9% 0.000 0.0)",
+          "oklch(49.3% 0.000 0.0)",
+          "oklch(60.7% 0.000 0.0)",
+          "oklch(72.1% 0.000 0.0)",
+          "oklch(83.6% 0.000 0.0)",
+          "oklch(95.0% 0.000 0.0)"
+        ]
+      },
+      "over-ink-2": {
+        "role": "secondary",
+        "displayName": "Blush Ink",
+        "canonical": "#ffe6e2",
+        "cssVar": "--over-ink-2",
+        "tonalRamp": [
+          "oklch(15.0% 0.016 28.5)",
+          "oklch(26.4% 0.024 28.5)",
+          "oklch(37.9% 0.028 28.5)",
+          "oklch(49.3% 0.028 28.5)",
+          "oklch(60.7% 0.028 28.5)",
+          "oklch(72.1% 0.025 28.5)",
+          "oklch(83.6% 0.017 28.5)",
+          "oklch(95.0% 0.006 28.5)"
+        ]
+      },
+      "over-soft": {
+        "role": "secondary",
+        "displayName": "Overdue Wash",
+        "canonical": "#fbe9e7",
+        "cssVar": "--over-soft",
+        "tonalRamp": [
+          "oklch(15.0% 0.011 25.2)",
+          "oklch(26.4% 0.017 25.2)",
+          "oklch(37.9% 0.020 25.2)",
+          "oklch(49.3% 0.020 25.2)",
+          "oklch(60.7% 0.020 25.2)",
+          "oklch(72.1% 0.018 25.2)",
+          "oklch(83.6% 0.012 25.2)",
+          "oklch(95.0% 0.004 25.2)"
+        ]
+      },
+      "live": {
+        "role": "tertiary",
+        "displayName": "Live Green",
+        "canonical": "#2f9e62",
+        "cssVar": "--live",
+        "tonalRamp": [
+          "oklch(15.0% 0.075 155.1)",
+          "oklch(26.4% 0.115 155.1)",
+          "oklch(37.9% 0.134 155.1)",
+          "oklch(49.3% 0.134 155.1)",
+          "oklch(60.7% 0.134 155.1)",
+          "oklch(72.1% 0.119 155.1)",
+          "oklch(83.6% 0.081 155.1)",
+          "oklch(95.0% 0.028 155.1)"
+        ]
+      },
+      "focus": {
+        "role": "tertiary",
+        "displayName": "Focus Blue",
+        "canonical": "#0e5fd8",
+        "cssVar": "--focus",
+        "tonalRamp": [
+          "oklch(15.0% 0.112 259.9)",
+          "oklch(26.4% 0.171 259.9)",
+          "oklch(37.9% 0.199 259.9)",
+          "oklch(49.3% 0.199 259.9)",
+          "oklch(60.7% 0.199 259.9)",
+          "oklch(72.1% 0.176 259.9)",
+          "oklch(83.6% 0.121 259.9)",
+          "oklch(95.0% 0.042 259.9)"
+        ]
+      },
+      "focus-on-frame": {
+        "role": "tertiary",
+        "displayName": "Frame Focus Yellow",
+        "canonical": "#ffd84d",
+        "cssVar": "--focus-on-frame",
+        "tonalRamp": [
+          "oklch(15.0% 0.088 93.0)",
+          "oklch(26.4% 0.134 93.0)",
+          "oklch(37.9% 0.157 93.0)",
+          "oklch(49.3% 0.157 93.0)",
+          "oklch(60.7% 0.157 93.0)",
+          "oklch(72.1% 0.139 93.0)",
+          "oklch(83.6% 0.095 93.0)",
+          "oklch(95.0% 0.033 93.0)"
+        ]
+      },
+      "frame": {
+        "role": "neutral",
+        "displayName": "Graphite Frame",
+        "canonical": "#263035",
+        "cssVar": "--frame",
+        "tonalRamp": [
+          "oklch(15.0% 0.009 229.6)",
+          "oklch(26.4% 0.014 229.6)",
+          "oklch(37.9% 0.016 229.6)",
+          "oklch(49.3% 0.016 229.6)",
+          "oklch(60.7% 0.016 229.6)",
+          "oklch(72.1% 0.015 229.6)",
+          "oklch(83.6% 0.010 229.6)",
+          "oklch(95.0% 0.003 229.6)"
+        ]
+      },
+      "frame-2": {
+        "role": "neutral",
+        "displayName": "Graphite Hover",
+        "canonical": "#313d43",
+        "cssVar": "--frame-2",
+        "tonalRamp": [
+          "oklch(15.0% 0.011 229.6)",
+          "oklch(26.4% 0.016 229.6)",
+          "oklch(37.9% 0.019 229.6)",
+          "oklch(49.3% 0.019 229.6)",
+          "oklch(60.7% 0.019 229.6)",
+          "oklch(72.1% 0.017 229.6)",
+          "oklch(83.6% 0.011 229.6)",
+          "oklch(95.0% 0.004 229.6)"
+        ]
+      },
+      "frame-deep": {
+        "role": "neutral",
+        "displayName": "Pressed Graphite",
+        "canonical": "#11181c",
+        "cssVar": "--frame-deep",
+        "tonalRamp": [
+          "oklch(15.0% 0.007 233.3)",
+          "oklch(26.4% 0.011 233.3)",
+          "oklch(37.9% 0.013 233.3)",
+          "oklch(49.3% 0.013 233.3)",
+          "oklch(60.7% 0.013 233.3)",
+          "oklch(72.1% 0.012 233.3)",
+          "oklch(83.6% 0.008 233.3)",
+          "oklch(95.0% 0.003 233.3)"
+        ]
+      },
+      "frame-line": {
+        "role": "neutral",
+        "displayName": "Frame Seam",
+        "canonical": "#46535a",
+        "cssVar": "--frame-line",
+        "tonalRamp": [
+          "oklch(15.0% 0.011 231.4)",
+          "oklch(26.4% 0.017 231.4)",
+          "oklch(37.9% 0.020 231.4)",
+          "oklch(49.3% 0.020 231.4)",
+          "oklch(60.7% 0.020 231.4)",
+          "oklch(72.1% 0.018 231.4)",
+          "oklch(83.6% 0.012 231.4)",
+          "oklch(95.0% 0.004 231.4)"
+        ]
+      },
+      "frame-ink": {
+        "role": "neutral",
+        "displayName": "Frame Ink",
+        "canonical": "#f2f5f4",
+        "cssVar": "--frame-ink",
+        "tonalRamp": [
+          "oklch(15.0% 0.002 174.5)",
+          "oklch(26.4% 0.003 174.5)",
+          "oklch(37.9% 0.003 174.5)",
+          "oklch(49.3% 0.003 174.5)",
+          "oklch(60.7% 0.003 174.5)",
+          "oklch(72.1% 0.003 174.5)",
+          "oklch(83.6% 0.002 174.5)",
+          "oklch(95.0% 0.001 174.5)"
+        ]
+      },
+      "frame-ink-2": {
+        "role": "neutral",
+        "displayName": "Brushed Silver Ink",
+        "canonical": "#b4bfc3",
+        "cssVar": "--frame-ink-2",
+        "tonalRamp": [
+          "oklch(15.0% 0.008 221.5)",
+          "oklch(26.4% 0.012 221.5)",
+          "oklch(37.9% 0.013 221.5)",
+          "oklch(49.3% 0.013 221.5)",
+          "oklch(60.7% 0.013 221.5)",
+          "oklch(72.1% 0.012 221.5)",
+          "oklch(83.6% 0.008 221.5)",
+          "oklch(95.0% 0.003 221.5)"
+        ]
+      },
+      "board": {
+        "role": "neutral",
+        "displayName": "Enamel White",
+        "canonical": "#f2f4f3",
+        "cssVar": "--board",
+        "tonalRamp": [
+          "oklch(15.0% 0.001 165.1)",
+          "oklch(26.4% 0.002 165.1)",
+          "oklch(37.9% 0.002 165.1)",
+          "oklch(49.3% 0.002 165.1)",
+          "oklch(60.7% 0.002 165.1)",
+          "oklch(72.1% 0.002 165.1)",
+          "oklch(83.6% 0.002 165.1)",
+          "oklch(95.0% 0.001 165.1)"
+        ]
+      },
+      "board-rim": {
+        "role": "neutral",
+        "displayName": "Board Rim",
+        "canonical": "#cfd5d8",
+        "cssVar": "--board-rim",
+        "tonalRamp": [
+          "oklch(15.0% 0.004 228.9)",
+          "oklch(26.4% 0.007 228.9)",
+          "oklch(37.9% 0.008 228.9)",
+          "oklch(49.3% 0.008 228.9)",
+          "oklch(60.7% 0.008 228.9)",
+          "oklch(72.1% 0.007 228.9)",
+          "oklch(83.6% 0.005 228.9)",
+          "oklch(95.0% 0.002 228.9)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "canonical": "#ffffff",
+        "cssVar": "--paper",
+        "tonalRamp": [
+          "oklch(15.0% 0.000 0.0)",
+          "oklch(26.4% 0.000 0.0)",
+          "oklch(37.9% 0.000 0.0)",
+          "oklch(49.3% 0.000 0.0)",
+          "oklch(60.7% 0.000 0.0)",
+          "oklch(72.1% 0.000 0.0)",
+          "oklch(83.6% 0.000 0.0)",
+          "oklch(95.0% 0.000 0.0)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Slot Rule",
+        "canonical": "#c9cfd2",
+        "cssVar": "--rule",
+        "tonalRamp": [
+          "oklch(15.0% 0.004 228.9)",
+          "oklch(26.4% 0.007 228.9)",
+          "oklch(37.9% 0.008 228.9)",
+          "oklch(49.3% 0.008 228.9)",
+          "oklch(60.7% 0.008 228.9)",
+          "oklch(72.1% 0.007 228.9)",
+          "oklch(83.6% 0.005 228.9)",
+          "oklch(95.0% 0.002 228.9)"
+        ]
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Strong Rule",
+        "canonical": "#8f9aa0",
+        "cssVar": "--rule-strong",
+        "tonalRamp": [
+          "oklch(15.0% 0.009 231.3)",
+          "oklch(26.4% 0.013 231.3)",
+          "oklch(37.9% 0.015 231.3)",
+          "oklch(49.3% 0.015 231.3)",
+          "oklch(60.7% 0.015 231.3)",
+          "oklch(72.1% 0.014 231.3)",
+          "oklch(83.6% 0.009 231.3)",
+          "oklch(95.0% 0.003 231.3)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Marker Black",
+        "canonical": "#172025",
+        "cssVar": "--ink",
+        "tonalRamp": [
+          "oklch(15.0% 0.009 232.6)",
+          "oklch(26.4% 0.014 232.6)",
+          "oklch(37.9% 0.016 232.6)",
+          "oklch(49.3% 0.016 232.6)",
+          "oklch(60.7% 0.016 232.6)",
+          "oklch(72.1% 0.014 232.6)",
+          "oklch(83.6% 0.010 232.6)",
+          "oklch(95.0% 0.003 232.6)"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Slate Ink",
+        "canonical": "#47535a",
+        "cssVar": "--ink-2",
+        "tonalRamp": [
+          "oklch(15.0% 0.011 233.5)",
+          "oklch(26.4% 0.016 233.5)",
+          "oklch(37.9% 0.019 233.5)",
+          "oklch(49.3% 0.019 233.5)",
+          "oklch(60.7% 0.019 233.5)",
+          "oklch(72.1% 0.017 233.5)",
+          "oklch(83.6% 0.012 233.5)",
+          "oklch(95.0% 0.004 233.5)"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "#5c686e",
+        "cssVar": "--ink-3",
+        "tonalRamp": [
+          "oklch(15.0% 0.010 229.2)",
+          "oklch(26.4% 0.015 229.2)",
+          "oklch(37.9% 0.018 229.2)",
+          "oklch(49.3% 0.018 229.2)",
+          "oklch(60.7% 0.018 229.2)",
+          "oklch(72.1% 0.015 229.2)",
+          "oklch(83.6% 0.011 229.2)",
+          "oklch(95.0% 0.004 229.2)"
+        ]
+      },
+      "slot-no": {
+        "role": "neutral",
+        "displayName": "Painted Number Grey",
+        "canonical": "#7d878c",
+        "cssVar": "--slot-no",
+        "tonalRamp": [
+          "oklch(15.0% 0.008 229.1)",
+          "oklch(26.4% 0.012 229.1)",
+          "oklch(37.9% 0.014 229.1)",
+          "oklch(49.3% 0.014 229.1)",
+          "oklch(60.7% 0.014 229.1)",
+          "oklch(72.1% 0.012 229.1)",
+          "oklch(83.6% 0.008 229.1)",
+          "oklch(95.0% 0.003 229.1)"
+        ]
+      },
+      "busy": {
+        "role": "neutral",
+        "displayName": "Occupied Grey",
+        "canonical": "#e3e7e8",
+        "cssVar": "--busy",
+        "tonalRamp": [
+          "oklch(15.0% 0.003 214.3)",
+          "oklch(26.4% 0.004 214.3)",
+          "oklch(37.9% 0.005 214.3)",
+          "oklch(49.3% 0.005 214.3)",
+          "oklch(60.7% 0.005 214.3)",
+          "oklch(72.1% 0.004 214.3)",
+          "oklch(83.6% 0.003 214.3)",
+          "oklch(95.0% 0.001 214.3)"
+        ]
+      },
+      "row-hover": {
+        "role": "neutral",
+        "displayName": "Row Hover",
+        "canonical": "#f8f9f8",
+        "cssVar": "--row-hover",
+        "tonalRamp": [
+          "oklch(15.0% 0.001 0.0)",
+          "oklch(26.4% 0.001 0.0)",
+          "oklch(37.9% 0.002 0.0)",
+          "oklch(49.3% 0.002 0.0)",
+          "oklch(60.7% 0.002 0.0)",
+          "oklch(72.1% 0.001 0.0)",
+          "oklch(83.6% 0.001 0.0)",
+          "oklch(95.0% 0.000 0.0)"
+        ]
+      },
+      "shade": {
+        "role": "neutral",
+        "displayName": "Graphite Shade",
+        "canonical": "rgba(23, 32, 37, 0.55)",
+        "cssVar": "--shade",
+        "tonalRamp": [
+          "oklch(15.0% 0.009 232.6)",
+          "oklch(26.4% 0.014 232.6)",
+          "oklch(37.9% 0.016 232.6)",
+          "oklch(49.3% 0.016 232.6)",
+          "oklch(60.7% 0.016 232.6)",
+          "oklch(72.1% 0.014 232.6)",
+          "oklch(83.6% 0.010 232.6)",
+          "oklch(95.0% 0.003 232.6)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Student tablet prompts; one per step."
+      },
+      "elapsed": {
+        "displayName": "Elapsed",
+        "purpose": "Elapsed time on a magnet tag; the largest text on the tag."
+      },
+      "slot-number": {
+        "displayName": "Slot Number",
+        "purpose": "Bed number painted in the corner of each slot."
+      },
+      "count": {
+        "displayName": "Count",
+        "purpose": "Free-bed count on the graphite frame."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Login title."
+      },
+      "tag-name": {
+        "displayName": "Tag Name",
+        "purpose": "Student's name on a magnet tag."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Zone, panel and sheet heads."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "All reading text and table cells."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Buttons and chips."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field labels, table headers, status pills on staff screens."
+      }
+    },
+    "shadows": [
+      {
+        "name": "board-rim",
+        "value": "inset 0 0 0 6px var(--board-rim)",
+        "purpose": "Recessed board well: board view, tablet stage, login card."
+      },
+      {
+        "name": "magnet-lift",
+        "value": "0 1px 0 var(--magnet-edge), 0 8px 16px -10px var(--shadow-magnet)",
+        "purpose": "A yellow magnet tag stuck on the board."
+      },
+      {
+        "name": "magnet-lift-large",
+        "value": "0 2px 0 var(--magnet-edge), 0 18px 26px -14px var(--shadow-magnet)",
+        "purpose": "Picked bed on the tablet; scan and done marks scale the drop further."
+      },
+      {
+        "name": "red-side-lift",
+        "value": "0 1px 0 var(--over-deep), 0 10px 18px -10px var(--shadow-over)",
+        "purpose": "Overdue magnet, paired with outline: 2px solid var(--over); outline-offset: 4px."
+      },
+      {
+        "name": "magnet-lip",
+        "value": "0 1px 0 var(--magnet-edge)",
+        "purpose": "Yellow items that sit flat: lit digit cell (2px on the yellow tablet choice)."
+      },
+      {
+        "name": "sheet-float",
+        "value": "0 30px 60px -20px var(--shadow-float)",
+        "purpose": "Dialog sheets over the Graphite Shade backdrop."
+      },
+      {
+        "name": "toast-float",
+        "value": "0 14px 30px -12px var(--shadow-float)",
+        "purpose": "Toasts."
+      },
+      {
+        "name": "focus-ring-frame",
+        "value": "0 0 0 3px var(--focus-on-frame)",
+        "purpose": "Scan bar focus-within on the graphite frame."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.2, 0.9, 0.25, 1)",
+        "purpose": "--ease: settle curve for magnet snap, flip, sheet and toast entry."
+      },
+      {
+        "name": "snap-in",
+        "value": "0.46s var(--ease); from translateY(-16px) scale(1.035) rotate(-1.4deg), overshoot translateY(2px) at 62%, settle",
+        "purpose": "A new registration lands in its slot on every open screen."
+      },
+      {
+        "name": "lift-off",
+        "value": "0.24s ease-in; to translateY(-12px) scale(1.03) rotate(1deg), opacity 0",
+        "purpose": "Checkout or cancel removes the magnet."
+      },
+      {
+        "name": "flip",
+        "value": "0.6s var(--ease); perspective(900px) rotateY(-180deg) to 0",
+        "purpose": "Crossing the allowed time turns the magnet to its red side."
+      },
+      {
+        "name": "sheet-in",
+        "value": "0.22s var(--ease); from translateY(10px), opacity 0",
+        "purpose": "Dialog entry."
+      },
+      {
+        "name": "toast-in",
+        "value": "0.25s var(--ease); from translateY(10px), opacity 0",
+        "purpose": "Toast entry."
+      },
+      {
+        "name": "state-change",
+        "value": "0.15s",
+        "purpose": "Background, border and colour transitions on buttons; press nudges 1px down."
+      },
+      {
+        "name": "scan-beam",
+        "value": "2.4s ease-in-out infinite; translateY(-46px) to 46px",
+        "purpose": "Red scanner beam on the tablet scan mark; hidden under reduced motion."
+      },
+      {
+        "name": "countdown",
+        "value": "5s linear; scaleX(1) to 0",
+        "purpose": "Tablet done screen returns to scan."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce -> durations 0.001ms, beam hidden",
+        "purpose": "All magnet motion off."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "tabs-compact",
+        "value": "1640px",
+        "note": "max-width: tab icons and the 남/여 split hide"
+      },
+      {
+        "name": "brand-compact",
+        "value": "1380px",
+        "note": "max-width: brand subtitle hides, scan input narrows"
+      },
+      {
+        "name": "zones-stack",
+        "value": "1180px",
+        "note": "max-width: the two zones stack"
+      },
+      {
+        "name": "kiosk-landscape",
+        "value": "1100px",
+        "note": "max-width + landscape: tablet keeps two zones"
+      },
+      {
+        "name": "narrow",
+        "value": "760px",
+        "note": "max-width: one slot column, icon-only tabs, page scroll, tablet stacks"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Graphite filled action: 연장, 로그인, dialog confirms, the tablet register button.",
+      "html": "<button class=\"ds-btn-primary\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg><span>연장</span></button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 18px; border: var(--line) solid transparent; border-radius: var(--radius); background: transparent; font-family: var(--font); font-size: var(--fs); font-weight: 700; line-height: 1.2; white-space: nowrap; cursor: pointer; transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.1s; } .ds-btn-primary svg { width: 1.2em; height: 1.2em; } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; } .ds-btn-primary { background: var(--frame); color: var(--frame-ink); } .ds-btn-primary:hover { background: var(--frame-deep); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Outline-only secondary action such as 퇴실 and 취소; on a magnet the outline takes Tag Ink.",
+      "html": "<button class=\"ds-btn-ghost\">퇴실</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 18px; border: var(--line) solid transparent; border-radius: var(--radius); background: transparent; font-family: var(--font); font-size: var(--fs); font-weight: 700; line-height: 1.2; white-space: nowrap; cursor: pointer; transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.1s; } .ds-btn-ghost svg { width: 1.2em; height: 1.2em; } .ds-btn-ghost:active { transform: translateY(1px); } .ds-btn-ghost:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; } .ds-btn-ghost { border-color: var(--ink-2); color: var(--ink); } .ds-btn-ghost:hover { background: var(--press); }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Filled red confirm, used only inside destructive confirmation sheets.",
+      "html": "<button class=\"ds-btn-danger\">퇴실 처리</button>",
+      "css": ".ds-btn-danger { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 18px; border: var(--line) solid transparent; border-radius: var(--radius); background: transparent; font-family: var(--font); font-size: var(--fs); font-weight: 700; line-height: 1.2; white-space: nowrap; cursor: pointer; transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.1s; } .ds-btn-danger svg { width: 1.2em; height: 1.2em; } .ds-btn-danger:active { transform: translateY(1px); } .ds-btn-danger:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; } .ds-btn-danger { background: var(--over); color: var(--over-ink); } .ds-btn-danger:hover { background: var(--over-deep); }"
+    },
+    {
+      "name": "Scan Bar",
+      "kind": "input",
+      "refersTo": "scan-field",
+      "description": "학번 scan field on the graphite frame with the yellow 등록 button joined flush.",
+      "html": "<div class=\"ds-scan-frame\"><form class=\"ds-scanbar\" onsubmit=\"return false\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 7V5a1 1 0 0 1 1-1h2\"/><path d=\"M17 4h2a1 1 0 0 1 1 1v2\"/><path d=\"M20 17v2a1 1 0 0 1-1 1h-2\"/><path d=\"M7 20H5a1 1 0 0 1-1-1v-2\"/><path d=\"M8 8v8M11 8v8M14 8v8M17 8v8\"/></svg><input placeholder=\"학번 스캔 또는 입력\" inputmode=\"numeric\"><button type=\"button\">등록</button></form></div>",
+      "css": ".ds-scan-frame { padding: 16px; background: var(--frame); font-family: var(--font); } .ds-scanbar { display: flex; align-items: center; height: 52px; padding-left: 14px; border-radius: var(--radius); background: var(--paper); color: var(--ink-3); } .ds-scanbar svg { width: 1.2em; height: 1.2em; flex: none; } .ds-scanbar:focus-within { box-shadow: 0 0 0 3px var(--focus-on-frame); } .ds-scanbar input { width: 200px; height: 100%; padding: 0 12px; border: 0; background: transparent; color: var(--ink); font: 600 var(--fs-md) var(--font); outline: none; } .ds-scanbar input::placeholder { color: var(--ink-3); font-weight: 400; font-size: var(--fs); } .ds-scanbar button { height: 52px; padding: 0 18px; border: 0; border-radius: 0 var(--radius) var(--radius) 0; background: var(--magnet); color: var(--magnet-ink); font: 700 var(--fs) var(--font); cursor: pointer; transition: background-color 0.15s; } .ds-scanbar button:hover { background: var(--magnet-hover); } .ds-scanbar button:focus-visible { outline: 3px solid var(--focus-on-frame); outline-offset: 2px; }"
+    },
+    {
+      "name": "Frame Tabs",
+      "kind": "nav",
+      "refersTo": "tab-selected",
+      "description": "Top-bar tabs on the graphite frame; the selected tab is a yellow block.",
+      "html": "<nav class=\"ds-tabs\" role=\"tablist\"><button class=\"ds-tab\" role=\"tab\" aria-selected=\"true\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 18V7\"/><path d=\"M3 14h18v4\"/><path d=\"M21 14v-2a3 3 0 0 0-3-3h-7v5\"/><circle cx=\"7\" cy=\"11\" r=\"2\"/></svg><span>현황판</span></button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 6h11M9 12h11M9 18h11\"/><path d=\"M4 6h.01M4 12h.01M4 18h.01\"/></svg><span>오늘 기록</span></button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z\"/></svg><span>설정</span></button></nav>",
+      "css": ".ds-tabs { display: flex; gap: 4px; padding: 16px; background: var(--frame); font-family: var(--font); } .ds-tab { display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; border: 0; border-radius: var(--radius); background: transparent; color: var(--frame-ink-2); font: 600 var(--fs) var(--font); cursor: pointer; } .ds-tab svg { width: 1.2em; height: 1.2em; } .ds-tab:hover { color: var(--frame-ink); background: var(--frame-2); } .ds-tab[aria-selected=\"true\"] { background: var(--magnet); color: var(--magnet-ink); font-weight: 800; } .ds-tab:focus-visible { outline: 3px solid var(--focus-on-frame); outline-offset: 2px; }"
+    },
+    {
+      "name": "Status and Chips",
+      "kind": "chip",
+      "refersTo": "status-active",
+      "description": "Pills for session state and extensions; overdue always carries the clock icon and words.",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-status is-active\">사용 중</span><span class=\"ds-status is-over\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/></svg>1시간 초과</span><span class=\"ds-status\">퇴실</span><span class=\"ds-status is-cancelled\">취소</span><span class=\"ds-chip-ext\">연장 1회</span></div>",
+      "css": ".ds-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-family: var(--font); } .ds-status { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border: var(--line) solid var(--rule-strong); border-radius: 999px; font-size: var(--fs-sm); font-weight: 700; color: var(--ink); } .ds-status svg { width: 1em; height: 1em; } .ds-status.is-active { background: var(--magnet); border-color: var(--magnet-edge); color: var(--magnet-ink); } .ds-status.is-over { background: var(--over); border-color: var(--over); color: var(--over-ink); } .ds-status.is-cancelled { border-style: dashed; color: var(--ink-3); } .ds-chip-ext { display: inline-flex; padding: 2px 10px; border-radius: 999px; background: var(--frame); color: var(--magnet); font-size: var(--fs); font-weight: 700; }"
+    },
+    {
+      "name": "Magnet Tag",
+      "kind": "custom",
+      "refersTo": "magnet-tag",
+      "description": "Signature: the yellow name-tag magnet in an occupied bed slot, with safe action left and destructive actions spaced right.",
+      "html": "<article class=\"ds-slot\"><span class=\"ds-slot-no\" aria-hidden=\"true\">1</span><div class=\"ds-tag\"><span class=\"ds-tag-bed\">1번 침대</span><h3 class=\"ds-tag-name\">김민준</h3><p class=\"ds-tag-meta\"><span>1학년 1반</span><span>1001</span><span>13:08 등록</span></p><p class=\"ds-tag-time\">32<small>분</small></p><p class=\"ds-tag-left\">남은 시간 28분</p><div class=\"ds-tag-actions\"><button class=\"ds-tag-btn is-primary\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg><span>연장</span></button><span class=\"ds-spacer\"></span><button class=\"ds-tag-btn is-ghost\">퇴실</button><button class=\"ds-tag-btn is-ghost is-icon\" aria-label=\"더보기\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"5\" cy=\"12\" r=\"1.2\"/><circle cx=\"12\" cy=\"12\" r=\"1.2\"/><circle cx=\"19\" cy=\"12\" r=\"1.2\"/></svg></button></div></div></article>",
+      "css": ".ds-slot { position: relative; display: flex; width: 340px; padding: 8px; border: var(--line) solid var(--rule); border-radius: 14px; background: var(--board); font-family: var(--font); } .ds-slot-no { position: absolute; top: 6px; right: 14px; font-size: 64px; font-weight: 900; line-height: 1; letter-spacing: -0.04em; color: var(--slot-no); } .ds-tag { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; padding: 16px 18px 14px; border-radius: var(--radius); background: var(--magnet); color: var(--magnet-ink); box-shadow: 0 1px 0 var(--magnet-edge), 0 8px 16px -10px var(--shadow-magnet); } .ds-tag-bed { font-size: var(--fs); font-weight: 700; color: var(--magnet-ink-2); } .ds-tag-name { margin: 4px 0 0; font-size: 30px; font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; } .ds-tag-meta { display: flex; flex-wrap: wrap; column-gap: 14px; margin: 4px 0 0; font-size: var(--fs); color: var(--magnet-ink-2); } .ds-tag-time { margin: 0; padding-top: 8px; font-size: 48px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; } .ds-tag-time small { font-size: 0.42em; font-weight: 700; letter-spacing: 0; margin: 0 0.12em 0 0.06em; } .ds-tag-left { margin: 6px 0 0; font-size: var(--fs); color: var(--magnet-ink-2); } .ds-tag-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; } .ds-tag-actions .ds-spacer { flex: 1; } .ds-tag-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 18px; border: var(--line) solid transparent; border-radius: var(--radius); background: transparent; color: inherit; font-family: var(--font); font-size: var(--fs); font-weight: 700; cursor: pointer; transition: background-color 0.15s, transform 0.1s; } .ds-tag-btn svg { width: 1.2em; height: 1.2em; } .ds-tag-btn:active { transform: translateY(1px); } .ds-tag-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; } .ds-tag-btn.is-primary { background: var(--frame); color: var(--frame-ink); } .ds-tag-btn.is-primary:hover { background: var(--frame-deep); } .ds-tag-btn.is-ghost { border-color: var(--magnet-ink); } .ds-tag-btn.is-ghost:hover { background: var(--magnet-press); } .ds-tag-btn.is-icon { width: 48px; padding: 0; } "
+    },
+    {
+      "name": "Overdue Magnet",
+      "kind": "custom",
+      "refersTo": "magnet-tag-over",
+      "description": "The magnet flipped to its red side: red face, doubled 2px outline, clock and 1시간 초과.",
+      "html": "<article class=\"ds-slot is-over\"><div class=\"ds-tag\"><span class=\"ds-tag-bed\">4번 침대</span><h3 class=\"ds-tag-name\">박지호</h3><p class=\"ds-tag-meta\"><span>3학년 1반</span><span>1003</span><span>12:27 등록</span></p><p class=\"ds-tag-alert\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/></svg><span>1시간 초과</span></p><p class=\"ds-tag-time\">1<small>시간</small>13<small>분</small></p><p class=\"ds-tag-left\">허용 시간보다 13분 더 사용</p><div class=\"ds-tag-actions\"><button class=\"ds-tag-btn is-primary\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg><span>연장</span></button><span class=\"ds-spacer\"></span><button class=\"ds-tag-btn is-ghost\">퇴실</button><button class=\"ds-tag-btn is-ghost is-icon\" aria-label=\"더보기\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"5\" cy=\"12\" r=\"1.2\"/><circle cx=\"12\" cy=\"12\" r=\"1.2\"/><circle cx=\"19\" cy=\"12\" r=\"1.2\"/></svg></button></div></div></article>",
+      "css": ".ds-slot { position: relative; display: flex; width: 340px; padding: 8px; border: var(--line) solid var(--rule); border-radius: 14px; background: var(--board); font-family: var(--font); } .ds-slot-no { position: absolute; top: 6px; right: 14px; font-size: 64px; font-weight: 900; line-height: 1; letter-spacing: -0.04em; color: var(--slot-no); } .ds-tag { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; padding: 16px 18px 14px; border-radius: var(--radius); background: var(--magnet); color: var(--magnet-ink); box-shadow: 0 1px 0 var(--magnet-edge), 0 8px 16px -10px var(--shadow-magnet); } .ds-tag-bed { font-size: var(--fs); font-weight: 700; color: var(--magnet-ink-2); } .ds-tag-name { margin: 4px 0 0; font-size: 30px; font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; } .ds-tag-meta { display: flex; flex-wrap: wrap; column-gap: 14px; margin: 4px 0 0; font-size: var(--fs); color: var(--magnet-ink-2); } .ds-tag-time { margin: 0; padding-top: 8px; font-size: 48px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; } .ds-tag-time small { font-size: 0.42em; font-weight: 700; letter-spacing: 0; margin: 0 0.12em 0 0.06em; } .ds-tag-left { margin: 6px 0 0; font-size: var(--fs); color: var(--magnet-ink-2); } .ds-tag-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; } .ds-tag-actions .ds-spacer { flex: 1; } .ds-tag-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 18px; border: var(--line) solid transparent; border-radius: var(--radius); background: transparent; color: inherit; font-family: var(--font); font-size: var(--fs); font-weight: 700; cursor: pointer; transition: background-color 0.15s, transform 0.1s; } .ds-tag-btn svg { width: 1.2em; height: 1.2em; } .ds-tag-btn:active { transform: translateY(1px); } .ds-tag-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; } .ds-tag-btn.is-primary { background: var(--frame); color: var(--frame-ink); } .ds-tag-btn.is-primary:hover { background: var(--frame-deep); } .ds-tag-btn.is-ghost { border-color: var(--magnet-ink); } .ds-tag-btn.is-ghost:hover { background: var(--magnet-press); } .ds-tag-btn.is-icon { width: 48px; padding: 0; } .ds-slot.is-over { border-color: transparent; } .ds-slot.is-over .ds-tag { background: var(--over); color: var(--over-ink); outline: 2px solid var(--over); outline-offset: 4px; box-shadow: 0 1px 0 var(--over-deep), 0 10px 18px -10px var(--shadow-over); } .ds-slot.is-over .ds-tag-bed, .ds-slot.is-over .ds-tag-meta, .ds-slot.is-over .ds-tag-left { color: var(--over-ink-2); } .ds-tag-alert { display: inline-flex; align-self: flex-start; align-items: center; gap: 6px; margin: 10px 0 0; padding: 4px 12px 4px 8px; border-radius: 999px; background: var(--over-ink); color: var(--over); font-size: var(--fs); font-weight: 800; } .ds-tag-alert svg { width: 1.2em; height: 1.2em; } .ds-slot.is-over .ds-tag-btn.is-primary { background: var(--over-ink); color: var(--over); } .ds-slot.is-over .ds-tag-btn.is-primary:hover { background: var(--over-soft); } .ds-slot.is-over .ds-tag-btn.is-ghost { border-color: var(--over-ink); color: var(--over-ink); } .ds-slot.is-over .ds-tag-btn.is-ghost:hover { background: var(--over-press); }"
+    },
+    {
+      "name": "Empty Slot",
+      "kind": "card",
+      "refersTo": "slot",
+      "description": "A free bed: dashed slot, painted bed number, 비어 있음, quiet register action on hover or focus.",
+      "html": "<article class=\"ds-empty\"><span class=\"ds-empty-no\" aria-hidden=\"true\">2</span><p class=\"ds-empty-text\">비어 있음</p><button class=\"ds-empty-add\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg><span>여기에 등록</span></button></article>",
+      "css": ".ds-empty { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; width: 340px; min-height: 260px; padding: 8px; border: var(--line) dashed var(--rule-strong); border-radius: 14px; background: var(--board); font-family: var(--font); } .ds-empty-no { position: absolute; top: 6px; right: 14px; font-size: 64px; font-weight: 900; line-height: 1; letter-spacing: -0.04em; color: var(--slot-no); } .ds-empty-text { margin: 0; color: var(--ink-2); font-size: var(--fs-md); font-weight: 600; } .ds-empty-add { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 18px; border: 0; background: transparent; color: var(--ink-2); font: 700 var(--fs) var(--font); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--rule-strong); cursor: pointer; opacity: 0; transition: opacity 0.15s; } .ds-empty-add svg { width: 1.2em; height: 1.2em; } .ds-empty:hover .ds-empty-add, .ds-empty-add:focus-visible { opacity: 1; } .ds-empty-add:hover { color: var(--ink); } .ds-empty-add:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }"
+    },
+    {
+      "name": "Tablet Bed Picker",
+      "kind": "custom",
+      "refersTo": "kiosk-bed-picked",
+      "description": "Student tablet bed cells: dashed free, solid grey occupied with a masked name, picked bed grows yellow with a check badge.",
+      "html": "<div class=\"ds-kbeds\"><button class=\"ds-kbed is-busy\" disabled><span class=\"ds-kbed-no\">1번</span><span class=\"ds-kbed-state\">김*준 · 32분</span></button><button class=\"ds-kbed is-picked\"><span class=\"ds-kbed-no\">2번</span><span class=\"ds-kbed-state\">비어 있음</span><span class=\"ds-kbed-check\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12.5l4.5 4.5L19 7.5\"/></svg></span></button><button class=\"ds-kbed\"><span class=\"ds-kbed-no\">3번</span><span class=\"ds-kbed-state\">비어 있음</span></button></div>",
+      "css": ".ds-kbeds { display: grid; grid-template-columns: repeat(3, 220px); gap: 12px; padding: 24px; background: var(--board); font-family: var(--font); } .ds-kbed { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 6px; min-height: 180px; padding: 14px 16px; border: var(--line) dashed var(--ink-2); border-radius: 16px; background: var(--paper); color: var(--ink); text-align: left; cursor: pointer; transition: transform 0.2s var(--ease), opacity 0.2s, background-color 0.15s, box-shadow 0.2s; } .ds-kbed-no { font-size: 34px; font-weight: 800; line-height: 1; } .ds-kbed-state { font-size: var(--fs-lg); font-weight: 600; color: var(--ink-2); } .ds-kbed:hover:not(:disabled):not(.is-picked) { background: var(--magnet-tint); } .ds-kbed:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; } .ds-kbed.is-busy { border-style: solid; border-color: var(--rule); background: var(--busy); color: var(--ink-3); cursor: default; } .ds-kbed.is-busy .ds-kbed-state { color: var(--ink-3); } .ds-kbed.is-picked { z-index: 1; background: var(--magnet); border: var(--line) solid var(--magnet-edge); color: var(--magnet-ink); transform: scale(1.04); box-shadow: 0 2px 0 var(--magnet-edge), 0 18px 26px -14px var(--shadow-magnet); } .ds-kbed.is-picked .ds-kbed-state { color: var(--magnet-ink-2); } .ds-kbed-check { position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--frame); color: var(--magnet); } .ds-kbed-check svg { width: 24px; height: 24px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Nurse-Station Magnet Board",
+    "overview": "The whole product is one physical object seen from four desks: a graphite aluminium frame holding an enamel whiteboard, ruled into one slot per bed, with a flat yellow name-tag magnet stuck into every occupied slot. The nurse PC, the support office, the admin hub and the student tablet all show that board, or a sheet laid over it. Nothing is a metric about the room; the board is a picture of the room, 남학생 on the left and 여학생 on the right, slots in real room order, a bunk bed drawn as one frame holding two stacked slots.\n\nThe system is built to be read at a glance from across the room. Type is large and heavy (18px body, 24px on the tablet, elapsed time 40 to 56px in tabular numerals like marker on a board), density is low, and colour is spent only on state: yellow means a magnet is there or something is selected, red means the magnet has flipped to its overdue side, graphite is the frame and the primary action. Everything else is enamel white, paper white and slate ink, divided by 1px rules.\n\nThe confirmed rejection is the category default: a sidebar dashboard of KPI tiles over a grid of identical cards. State is carried by form as well as colour, so the board still reads with colour removed: a dashed slot is open, a solid magnet is occupied, a red face with a doubled border, a clock and the words \"1시간 초과\" is overdue.",
+    "keyCharacteristics": [
+      "One frame, one board: graphite shell, recessed enamel board well, paper panels and sheets on top.",
+      "Yellow magnet tags for occupied beds; the red side of the magnet for overdue.",
+      "Dashed means open, solid means taken.",
+      "Heavy tabular numerals for time and counts; elapsed time is the largest text on a tag.",
+      "Flat, 1px-ruled surfaces; only magnets and floating sheets cast shadows.",
+      "Magnet motion: snap in, lift off, flip to red.",
+      "Every colour is a `:root` token in `css/app.css`."
+    ],
+    "rules": [
+      {
+        "name": "The Magnet Yellow Rule",
+        "body": "Yellow is the magnet: it marks an occupied bed, the current selection, the brand mark and the one action the frame is asking for. It never becomes a panel or board background.",
+        "section": "colors"
+      },
+      {
+        "name": "The Red Side Rule",
+        "body": "Red is the back of the magnet: overdue, destructive, error, offline. Overdue always arrives as red face plus clock icon plus words, never colour alone. Its single non-alarm use is the scanner beam on the tablet's scan mark, which imitates the scanner's laser.",
+        "section": "colors"
+      },
+      {
+        "name": "The Root-Token Rule",
+        "body": "Every colour lives in the `:root` block at the top of `css/app.css`, with derived tokens declared beside their parents; component rules and scripts reference tokens only. Recolouring the app means editing that block and nothing else.",
+        "section": "colors"
+      },
+      {
+        "name": "The Marker Numeral Rule",
+        "body": "Elapsed time is the largest text on a magnet, weight 800 with tabular figures and units at 0.42em so the digits carry the reading. Every counted number (free beds, digits, times in tables) uses tabular figures.",
+        "section": "typography"
+      },
+      {
+        "name": "The Kiosk 24 Rule",
+        "body": "On the student tablet no text, button or chip is smaller than 24px; prompts run 36 to 54px.",
+        "section": "typography"
+      },
+      {
+        "name": "The Whole-Word Rule",
+        "body": "Korean breaks between words (`word-break: keep-all`). On a magnet, meta items (class, 학번, registration time, source) stay whole and are separated by a 14px gap, never a dot, so no line starts or ends with a separator.",
+        "section": "typography"
+      },
+      {
+        "name": "The Whole-Slot Reflow Rule",
+        "body": "The board reflows by whole zones and whole slots only: drop a column, never shrink type or squeeze a magnet to make it fit.",
+        "section": "layout"
+      },
+      {
+        "name": "The Room-Order Rule",
+        "body": "Every board view, staff or tablet, keeps 남학생 on the left and 여학생 on the right, with beds in the room's real order.",
+        "section": "layout"
+      },
+      {
+        "name": "The Only-Magnets-Lift Rule",
+        "body": "A shadow means the object is stuck onto the board or floats above it. Panels, slots, tables, inputs and graphite or outline buttons stay flat.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Dashed-Means-Open Rule",
+        "body": "A dashed 1px border marks something open or optional: an empty bed slot, a free bed in the picker and on the tablet, an optional digit cell, the file drop zone, a cancelled status. Occupied and fixed things are solid. The shape carries the state with colour removed.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Nested Corner Rule",
+        "body": "An inner shape's radius is always smaller than its container's.",
+        "section": "shapes"
+      },
+      {
+        "name": "The One-Line Rule",
+        "body": "Every rule, border and divider is 1px (`--line`). Heavier strokes mean state: 2px for the overdue outline and checked rings, 3px for focus, the 6px inset rim for the board's edge.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Spaced Destructive Rule",
+        "body": "On a magnet the safe action (연장, filled) sits at the left; a spacer pushes 퇴실 (outline-only) and the ⋯ menu to the right edge. Destructive steps are confirmed in a sheet whose confirm button is the filled danger button.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do take every colour from the `:root` tokens in `css/app.css`, adding any new derived token beside its parent.",
+      "Do show every bed state by form, colour and words together: dashed slot for free, solid yellow magnet for occupied, red face with the 2px offset outline, clock and \"1시간 초과\" for overdue.",
+      "Do make elapsed time the largest text on a magnet (clamp(40px, 3.4vw, 56px), 800, tabular figures).",
+      "Do keep reading text at 18px on staff screens and every text at 24px or more on the student tablet.",
+      "Do keep 남학생 left and 여학생 right in room order on every board, with the bunk drawn as one frame holding two slots.",
+      "Do nest corner radii, keep rules at 1px, and reserve heavier strokes for state.",
+      "Do use the one 24px, 2px-stroke SVG icon set.",
+      "Do play the magnet moves (snap in, lift off, flip) on every open screen, and switch them and the scanner beam off under reduced motion."
+    ],
+    "donts": [
+      "Don't rebuild the board as a sidebar dashboard of KPI tiles and identical cards.",
+      "Don't use red for anything but overdue, destructive, error and offline states (the tablet scanner beam is the one exception).",
+      "Don't use yellow as a panel or board background or as decoration.",
+      "Don't put shadows on panels, slots, tables, inputs, or graphite and outline buttons.",
+      "Don't signal any state with colour alone.",
+      "Don't place 퇴실 or any destructive action beside 연장 or give it a fill on the magnet.",
+      "Don't shrink type to fit the board; drop a column instead.",
+      "Don't write a literal colour in a component rule or in script markup."
+    ]
+  }
+}
