@@ -23,13 +23,9 @@
   const say = (e) => SAY[e.code] || e.message;
 
   // ── 전체 화면 ──────────────────────────────────────────────
-  // 한 번 켜면 기억해 두었다가, 새로 고침 등으로 풀려도 다음 터치 때 다시 전체 화면으로 돌아간다.
-  // (브라우저는 사용자가 누를 때만 전체 화면을 허락한다) 끄는 것은 숨은 관리 메뉴에서 비밀번호로.
-  const FS_KEY = 'clinic-manager.kiosk-fullscreen';
+  // 오른쪽 위 "전체 화면" 버튼을 눌렀을 때만 켠다. 끄는 것은 숨은 관리 메뉴에서 비밀번호로.
   const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
   const fsSupported = () => !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
-  const fsWanted = () => { try { return localStorage.getItem(FS_KEY) === '1'; } catch (e) { return false; } };
-  const fsRemember = (on) => { try { if (on) localStorage.setItem(FS_KEY, '1'); else localStorage.removeItem(FS_KEY); } catch (e) { /* 저장 못 해도 지금은 동작한다 */ } };
   function fsEnter() {
     const el = document.documentElement;
     try {
@@ -335,14 +331,13 @@
     const onPointer = () => { armIdle(); setTimeout(keepFocus, 0); };
     document.addEventListener('pointerdown', onPointer);
 
-    // 전체 화면: 버튼으로 켜고, 켜 둔 상태에서 풀리면 다음 터치 때 다시 전체 화면으로
+    // 전체 화면: 버튼을 눌렀을 때만 켠다 (화면의 다른 곳을 눌러서는 켜지지 않는다)
     const kioskEl = root.querySelector('.kiosk');
     function paintFs() {
       kioskEl.classList.toggle('is-fs', !!fsElement());
       kioskEl.classList.toggle('no-fs', !fsSupported());
     }
-    root.querySelector('[data-fs]').addEventListener('click', () => { fsRemember(true); fsEnter(); });
-    root.addEventListener('click', () => { if (fsWanted() && !fsElement() && fsSupported()) fsEnter(); }, true);
+    root.querySelector('[data-fs]').addEventListener('click', fsEnter);
     document.addEventListener('fullscreenchange', paintFs);
     document.addEventListener('webkitfullscreenchange', paintFs);
     paintFs();
@@ -353,7 +348,7 @@
     brand.addEventListener('pointerdown', () => { hold = setTimeout(adminMenu, 2000); });
     ['pointerup', 'pointerleave', 'pointercancel'].forEach((t) => brand.addEventListener(t, () => clearTimeout(hold)));
     async function adminMenu() {
-      const fsOn = fsWanted() || !!fsElement();
+      const fsOn = !!fsElement();
       const v = await App.dialog({
         title: '관리 메뉴',
         body: '<p class="sheet-text">태블릿에서 로그아웃' + (fsOn ? '하거나 전체 화면을 끝내' : '하') + '려면 보건 선생님 또는 관리자 비밀번호를 입력해 주세요.</p>' +
@@ -366,7 +361,7 @@
           if (!Store.verifyPassword(['nurse', 'admin'], pw)) { dlg.querySelector('.field-error').hidden = false; return false; }
         },
       });
-      if (v === 'fs-off' || v === 'out') { fsRemember(false); fsExit(); }
+      if (v === 'fs-off' || v === 'out') fsExit();
       if (v === 'out') ctx.logout();
       keepFocus();
     }

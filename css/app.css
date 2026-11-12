@@ -469,7 +469,7 @@ body[data-screen="kiosk"] { overflow: hidden; }
 .k-top { display: flex; align-items: center; gap: 20px; min-height: 76px; color: var(--frame-ink); }
 .k-brand { display: inline-flex; align-items: center; gap: 12px; padding: 0; border: 0; background: none; color: inherit; font-size: var(--fs-lg); font-weight: 800; -webkit-touch-callout: none; }
 .k-brand .ico { width: 40px; height: 40px; padding: 7px; border-radius: 10px; background: var(--magnet); color: var(--magnet-ink); }
-.k-free { margin-left: auto; display: flex; align-items: baseline; gap: 8px; font-size: var(--fs-lg); color: var(--frame-ink-2); }
+.k-free { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: var(--fs-lg); color: var(--frame-ink-2); } /* 글자와 큰 숫자를 위아래 가운데로 맞춘다 */
 .k-free b { font-size: 44px; line-height: 1; color: var(--magnet); font-weight: 800; font-variant-numeric: tabular-nums; }
 .k-free-split { margin-left: 8px; font-size: var(--fs-lg); }
 .k-top .live { padding-left: 18px; border-left: var(--line) solid var(--frame-line); font-size: var(--fs); }
