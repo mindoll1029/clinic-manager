@@ -22,6 +22,29 @@
   };
   const say = (e) => SAY[e.code] || e.message;
 
+  // ── 전체 화면 ──────────────────────────────────────────────
+  // 한 번 켜면 기억해 두었다가, 새로 고침 등으로 풀려도 다음 터치 때 다시 전체 화면으로 돌아간다.
+  // (브라우저는 사용자가 누를 때만 전체 화면을 허락한다) 끄는 것은 숨은 관리 메뉴에서 비밀번호로.
+  const FS_KEY = 'clinic-manager.kiosk-fullscreen';
+  const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+  const fsSupported = () => !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+  const fsWanted = () => { try { return localStorage.getItem(FS_KEY) === '1'; } catch (e) { return false; } };
+  const fsRemember = (on) => { try { if (on) localStorage.setItem(FS_KEY, '1'); else localStorage.removeItem(FS_KEY); } catch (e) { /* 저장 못 해도 지금은 동작한다 */ } };
+  function fsEnter() {
+    const el = document.documentElement;
+    try {
+      const p = el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : el.webkitRequestFullscreen();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) { /* 지원하지 않는 기기 */ }
+  }
+  function fsExit() {
+    if (!fsElement()) return;
+    try {
+      const p = document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) { /* 무시 */ }
+  }
+
   function mount(root, ctx) {
     let state = { step: 'scan' };
     let scanBuf = '';
@@ -34,6 +57,7 @@
           '<button type="button" class="k-brand" aria-label="보건실 (길게 누르면 관리 메뉴)">' + window.icon('bed') + '<span>보건실</span></button>' +
           '<p class="k-free" aria-live="polite"></p>' +
           '<p class="live" data-live></p>' +
+          '<button type="button" class="k-fs" data-fs aria-label="전체 화면으로 보기">' + window.icon('maximize') + '<span>전체 화면</span></button>' +
         '</header>' +
         '<main class="k-stage"></main>' +
         '<input class="k-scan-input" inputmode="none" autocomplete="off" aria-hidden="true" tabindex="-1">' +
@@ -311,22 +335,38 @@
     const onPointer = () => { armIdle(); setTimeout(keepFocus, 0); };
     document.addEventListener('pointerdown', onPointer);
 
-    // 숨은 관리 메뉴: 보건실 글자를 2초 길게 누르면 로그아웃
+    // 전체 화면: 버튼으로 켜고, 켜 둔 상태에서 풀리면 다음 터치 때 다시 전체 화면으로
+    const kioskEl = root.querySelector('.kiosk');
+    function paintFs() {
+      kioskEl.classList.toggle('is-fs', !!fsElement());
+      kioskEl.classList.toggle('no-fs', !fsSupported());
+    }
+    root.querySelector('[data-fs]').addEventListener('click', () => { fsRemember(true); fsEnter(); });
+    root.addEventListener('click', () => { if (fsWanted() && !fsElement() && fsSupported()) fsEnter(); }, true);
+    document.addEventListener('fullscreenchange', paintFs);
+    document.addEventListener('webkitfullscreenchange', paintFs);
+    paintFs();
+
+    // 숨은 관리 메뉴: 보건실 글자를 2초 길게 누르면 로그아웃·전체 화면 끝내기
     const brand = root.querySelector('.k-brand');
     let hold = null;
     brand.addEventListener('pointerdown', () => { hold = setTimeout(adminMenu, 2000); });
     ['pointerup', 'pointerleave', 'pointercancel'].forEach((t) => brand.addEventListener(t, () => clearTimeout(hold)));
     async function adminMenu() {
+      const fsOn = fsWanted() || !!fsElement();
       const v = await App.dialog({
         title: '관리 메뉴',
-        body: '<p class="sheet-text">태블릿에서 로그아웃하려면 보건 선생님 또는 관리자 비밀번호를 입력해 주세요.</p>' +
+        body: '<p class="sheet-text">태블릿에서 로그아웃' + (fsOn ? '하거나 전체 화면을 끝내' : '하') + '려면 보건 선생님 또는 관리자 비밀번호를 입력해 주세요.</p>' +
           '<label class="field"><span>비밀번호</span><input name="pw" type="password" autocomplete="current-password" autofocus></label><p class="field-error" hidden>비밀번호가 맞지 않습니다.</p>',
-        actions: [{ label: '취소', value: '__cancel' }, { label: '로그아웃', value: 'out', kind: 'danger', icon: 'logout' }],
+        actions: [{ label: '취소', value: '__cancel' }]
+          .concat(fsOn ? [{ label: '전체 화면 끝내기', value: 'fs-off', kind: 'ghost', icon: 'minimize' }] : [])
+          .concat([{ label: '로그아웃', value: 'out', kind: 'danger', icon: 'logout' }]),
         onSubmit(dlg) {
           const pw = dlg.querySelector('[name=pw]').value;
           if (!Store.verifyPassword(['nurse', 'admin'], pw)) { dlg.querySelector('.field-error').hidden = false; return false; }
         },
       });
+      if (v === 'fs-off' || v === 'out') { fsRemember(false); fsExit(); }
       if (v === 'out') ctx.logout();
       keepFocus();
     }
@@ -352,6 +392,8 @@
         clearTimeout(idleTimer); clearTimeout(stepTimer); clearInterval(lockTimer);
         document.removeEventListener('keydown', onKey);
         document.removeEventListener('pointerdown', onPointer);
+        document.removeEventListener('fullscreenchange', paintFs);
+        document.removeEventListener('webkitfullscreenchange', paintFs);
       },
     };
   }
