@@ -102,10 +102,10 @@
             (role === 'admin' ? '<label class="field check"><input type="checkbox" name="alertSoundSupport"' + (st.alertSoundSupport ? ' checked' : '') + '><span>사용 시간이 지나면 학생지원실 화면에서 알림음 울리기</span></label>' : '') +
             '<div class="row-actions"><span class="spacer"></span><button class="btn btn-primary">저장</button></div>' +
           '</form></section>' +
-        '<section class="panel"><header class="panel-head"><h2>관리번호</h2><p class="panel-note">학생이 태블릿에서 연장할 때 입력하는 4~6자리 숫자입니다. 저장한 번호는 다시 볼 수 없습니다.</p></header>' +
+        '<section class="panel"><header class="panel-head"><h2>관리번호</h2><p class="panel-note">학생이 태블릿에서 연장할 때 입력하는 4자리 숫자입니다. 저장한 번호는 다시 볼 수 없습니다.</p></header>' +
           '<form class="form-grid" data-form="code">' +
-            '<label class="field"><span>새 관리번호</span><input name="code" type="password" inputmode="numeric" pattern="\\d{4,6}" maxlength="6" autocomplete="new-password" required></label>' +
-            '<label class="field"><span>한 번 더</span><input name="code2" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" required></label>' +
+            '<label class="field"><span>새 관리번호</span><input name="code" type="password" inputmode="numeric" pattern="\\d{4}" maxlength="4" autocomplete="new-password" required></label>' +
+            '<label class="field"><span>한 번 더</span><input name="code2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" required></label>' +
             '<div class="row-actions"><span class="spacer"></span><button class="btn btn-primary">관리번호 바꾸기</button></div>' +
           '</form></section>' +
         (role === 'admin' ? accountsHTML() : '') +

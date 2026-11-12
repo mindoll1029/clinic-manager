@@ -548,7 +548,7 @@
 
     setExtensionCode(code) {
       const c = String(code || '');
-      if (!/^\d{4,6}$/.test(c)) fail('BAD_CODE', '관리번호는 4~6자리 숫자여야 합니다.');
+      if (!/^\d{4}$/.test(c)) fail('BAD_CODE', '관리번호는 4자리 숫자여야 합니다.');
       mutate((d) => { d.settings.extensionCodeHash = hashCode(c); });
     },
 

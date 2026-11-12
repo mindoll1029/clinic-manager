@@ -181,7 +181,7 @@
         html = '<section class="k-step k-type">' +
           '<div class="k-type-left"><h1>관리번호를 눌러 주세요</h1>' +
             '<p class="k-sub">보건 선생님께 받은 번호예요. ' + Store.settings().extendMinutes + '분 연장돼요.</p>' +
-            '<p class="k-digits is-secret" aria-label="' + buf.length + '자리 입력">' + [0, 1, 2, 3, 4, 5].map((i) => '<span class="' + (i < buf.length ? 'is-on' : '') + (i >= 4 ? ' is-opt' : '') + '">' + (i < buf.length ? '●' : '') + '</span>').join('') + '</p>' +
+            '<p class="k-digits is-secret" aria-label="' + buf.length + '자리 입력">' + [0, 1, 2, 3].map((i) => '<span class="' + (i < buf.length ? 'is-on' : '') + '">' + (i < buf.length ? '●' : '') + '</span>').join('') + '</p>' +
             (left > 0 ? '<p class="k-error" role="alert">' + window.icon('lock') + '<span>' + left + '초 뒤에 다시 해 주세요.</span></p>'
               : s.error ? '<p class="k-error" role="alert">' + window.icon('alert') + '<span>' + esc(s.error) + (s.errorNote ? ' <span class="nowrap">' + esc(s.errorNote) + '</span>' : '') + '</span></p>' : '') +
             '<button type="button" class="btn btn-ghost btn-lg" data-go="choice">' + window.icon('back') + '<span>돌아가기</span></button></div>' +
@@ -236,7 +236,7 @@
       if (state.step !== 'type' && state.step !== 'code') return;
       if (state.step === 'code' && Store.lockState(DEVICE)) return;
       let buf = state.buf || '';
-      const maxLen = state.step === 'code' ? 6 : 4; // 학번은 4자리, 관리번호는 4~6자리
+      const maxLen = 4; // 학번과 관리번호 모두 4자리
       if (k === 'del') buf = buf.slice(0, -1);
       else if (k === 'ok') return submitBuf();
       else if (/^\d$/.test(k) && buf.length < maxLen) buf += k;
