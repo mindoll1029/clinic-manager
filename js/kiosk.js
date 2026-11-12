@@ -156,7 +156,7 @@
         const over = App.isOver(a, now);
         const max = Store.settings().maxExtensions;
         html = '<section class="k-step k-choice">' +
-          '<h1><b>' + esc(s.student.name) + '</b> 학생은<br>' + esc(App.bedName(a.bedLabel, a.bedTier)) + '를 쓰고 있어요</h1>' +
+          '<h1><b>' + esc(s.student.name) + '</b> 학생은<br>휴식 중입니다</h1>' +
           '<p class="k-elapsed' + (over ? ' is-over' : '') + '">' + (over ? window.icon('clock') : '') + '<span>' + App.elapsedText(a.startedAt, now) + ' 사용</span>' + (over ? '<span class="chip chip-over">' + App.overLabel(a) + '</span>' : '') + '</p>' +
           '<div class="k-choices">' +
             '<button type="button" class="k-choice-btn is-primary" data-go="confirmEnd">' + window.icon('logout') + '<b>퇴실하기</b><small>다 쉬었어요</small></button>' +
