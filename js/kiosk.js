@@ -138,7 +138,7 @@
         const buf = s.buf || '';
         html = '<section class="k-step k-type">' +
           '<div class="k-type-left"><h1>학번을 눌러 주세요</h1>' +
-            '<p class="k-digits" aria-live="polite" aria-label="입력한 학번 ' + esc(buf) + '">' + [0, 1, 2, 3].map((i) => '<span class="' + (buf[i] ? 'is-on' : '') + '">' + esc(buf[i] || '') + '</span>').join('') + (buf.length > 4 ? '<span class="is-on">' + esc(buf.slice(4)) + '</span>' : '') + '</p>' +
+            '<p class="k-digits" aria-live="polite" aria-label="입력한 학번 ' + esc(buf) + '">' + [0, 1, 2, 3].map((i) => '<span class="' + (buf[i] ? 'is-on' : '') + '">' + esc(buf[i] || '') + '</span>').join('') + '</p>' +
             (s.error ? '<p class="k-error" role="alert">' + window.icon('alert') + esc(s.error) + '</p>' : '<p class="k-sub">학번 4자리를 누르고 확인을 눌러요.</p>') +
             '<button type="button" class="btn btn-ghost btn-lg" data-go="scan">' + window.icon('back') + '<span>처음으로</span></button></div>' +
           keypad('학번 입력') +
@@ -236,7 +236,7 @@
       if (state.step !== 'type' && state.step !== 'code') return;
       if (state.step === 'code' && Store.lockState(DEVICE)) return;
       let buf = state.buf || '';
-      const maxLen = state.step === 'code' ? 6 : 10;
+      const maxLen = state.step === 'code' ? 6 : 4; // 학번은 4자리, 관리번호는 4~6자리
       if (k === 'del') buf = buf.slice(0, -1);
       else if (k === 'ok') return submitBuf();
       else if (/^\d$/.test(k) && buf.length < maxLen) buf += k;
