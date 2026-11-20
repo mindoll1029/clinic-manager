@@ -44,7 +44,15 @@
     rosterSheetUrl: '',       // 학생 명단을 불러오는 구글 스프레드시트 링크
     rosterLoadedAt: 0,        // 명단을 마지막으로 불러온 시각
     dutySchedule: defaultSchedule(), // 보건 선생님 근무 일정
+    jandiUrl: '',             // 퇴실 확인이 늦을 때 알릴 잔디 웹훅 주소 (Incoming Webhook)
   };
+
+  // 퇴실 요청: 학생이 태블릿(보건실·학생지원실)에서 퇴실을 요청하면 "퇴실 중"이 되고,
+  // 학생지원실 PC에서 학생을 확인한 뒤 [퇴실 확인]을 눌러야 퇴실이 끝난다.
+  // 퇴실 중으로 LEAVE_ALERT_MINUTES분이 지나면 잔디로 한 번 알린다 (보내지 못하면 LEAVE_ALERT_TRIES번까지 다시).
+  const LEAVE_ALERT_MINUTES = 10;
+  const LEAVE_ALERT_TRIES = 3;
+  const JANDI_URL = /^https:\/\/wh\.jandi\.com\/connect-api\/webhook\/\d+\/[0-9A-Za-z]+$/;
 
   // source: 기록의 "등록 위치"와 현황판 "누가 등록"에 남는 이름. 없으면 역할(role)을 쓴다.
   // 보건 조교는 학생지원실 화면(role: support)을 쓰고, 기록에는 "보건 조교"로 남는다.
@@ -53,6 +61,8 @@
     { id: 'admin', role: 'admin', name: '관리자', password: 'admin1234' },
     { id: 'nurse', role: 'nurse', name: '보건 선생님', password: 'nurse1234' },
     { id: 'kiosk-nurse-room', role: 'kiosk', name: '보건실 학생 태블릿', password: 'kiosk1234' },
+    // 학생지원실 학생용 화면: 스캔 → 퇴실 요청 (연장은 없다)
+    { id: 'kiosk-support-office', role: 'office', name: '학생지원실 학생 태블릿', password: 'office1234' },
     { id: 'support-office', role: 'support', name: '강의동 학생지원실', password: 'support1234' },
     { id: 'nurse-assistant', role: 'support', name: '보건 조교', password: 'assist1234', source: 'assistant' },
   ];
@@ -77,7 +87,7 @@
   ];
   // 현황판: 남학생 [10번][6번] / [2층: 9번·8번][7번], 여학생 [5번][1번] / [4번][2층: 3번·2번]
 
-  const DATA_VERSION = 6;
+  const DATA_VERSION = 7;
 
   // 예전(version 1) 기본 침대 번호. 이대로 남아 있으면 새 번호·배치로 바꾼다.
   const LEGACY_LABELS = { b1: '1번', b2: '2번', b3: '3번', b4: '4번', b5: '5번', b6: '6번', b7: '7번', b8: '8번', b9: '9번', b10: '10번' };
@@ -310,7 +320,7 @@
     (data.sessions || []).forEach((s) => {
       if (!s.dueAt) s.dueAt = nextHour(s.startedAt) + (s.extensionCount || 0) * data.settings.extendMinutes * MIN;
     });
-    // version 6: 보건 조교 계정, 보건 선생님 근무 일정
+    // version 6: 보건 조교 계정, 보건 선생님 근무 일정 / version 7: 학생지원실 학생 태블릿 계정
     data.accounts = data.accounts || [];
     DEFAULT_ACCOUNTS.forEach((a) => { if (!data.accounts.some((x) => x.id === a.id)) data.accounts.push(Object.assign({}, a)); });
     const sched = data.settings.dutySchedule;
@@ -479,17 +489,23 @@
         try { replay(op, next); } catch (e) {
           ops.shift();
           rebuild();
-          notice('다른 화면에서 먼저 바뀌어 처리하지 못했습니다. ' + e.message);
+          if (op.done) op.done(false);
+          if (!op.quiet) notice('다른 화면에서 먼저 바뀌어 처리하지 못했습니다. ' + e.message);
           continue;
         }
         next.rev = confirmed.rev + 1;
         if (await write(confirmed.rev, next)) {
           confirmed = next;
           ops.shift();
+          if (op.done) op.done(true);
           setStatus('online');
         } else {
           // 다른 기기가 먼저 저장했다 → 최신 데이터를 받아 같은 변경을 다시 적용한다
-          if (++op.tries > 8) { ops.shift(); notice('다른 화면과 동시에 바뀌어 저장하지 못했습니다. 다시 해 주세요.'); }
+          if (++op.tries > 8) {
+            ops.shift();
+            if (op.done) op.done(false);
+            if (!op.quiet) notice('다른 화면과 동시에 바뀌어 저장하지 못했습니다. 다시 해 주세요.');
+          }
           const latest = await fetchRow();
           if (!latest) throw new Error('NO_ROW');
           takeServer(latest);
@@ -499,7 +515,7 @@
     } catch (e) {
       console.error(e);
       setStatus('offline');
-      ops.length = 0; // 저장하지 못한 변경은 버리고 서버 상태로 되돌린다
+      ops.splice(0).forEach((op) => { if (op.done) op.done(false); }); // 저장하지 못한 변경은 버리고 서버 상태로 되돌린다
       notice('서버에 저장하지 못했습니다. 인터넷 연결을 확인하고 다시 해 주세요.');
       try { takeServer(await fetchRow()); } catch (_) { /* 연결이 돌아오면 다시 읽는다 */ }
       rebuild();
@@ -508,7 +524,9 @@
     }
   }
 
-  function remoteMutate(fn) {
+  // opts.quiet: 다른 기기 때문에 적용하지 못해도 화면에 알리지 않는다.
+  // opts.done(saved): 서버에 저장했으면 true, 버렸으면 false로 한 번 불린다.
+  function remoteMutate(fn, opts) {
     if (!cache) throw Object.assign(new Error('아직 서버에 연결되지 않았습니다.'), { code: 'OFFLINE' });
     const next = clone(cache);
     uidLog = [];
@@ -516,10 +534,21 @@
     try { result = fn(next); } catch (e) { uidLog = null; throw e; } // 오류가 나면 아무것도 바뀌지 않는다
     const ids = uidLog;
     uidLog = null;
-    ops.push({ fn, ids, tries: 0 });
+    ops.push({ fn, ids, tries: 0, quiet: !!(opts && opts.quiet), done: opts && opts.done });
     rebuild();
     pump();
     return result;
+  }
+
+  // 서버에 실제로 저장된 것을 확인한 뒤에 true를 돌려준다. 다른 기기가 먼저 바꿔서 적용할 수 없게 되면 false.
+  // 잔디 알림처럼 열린 화면 중 한 곳만 해야 하는 일을 정할 때 쓴다. 실패해도 화면에 오류를 띄우지 않는다.
+  function mutateConfirmed(fn) {
+    if (!REMOTE) {
+      try { mutate(fn); return Promise.resolve(true); } catch (e) { return Promise.resolve(false); }
+    }
+    return new Promise((resolve) => {
+      try { remoteMutate(fn, { quiet: true, done: resolve }); } catch (e) { resolve(false); }
+    });
   }
 
   function subscribeRemote() {
@@ -573,6 +602,7 @@
       startedAt: s.startedAt, endedAt: s.endedAt, status: s.status,
       dueAt: dueOf(s), extensionCount: s.extensionCount,
       source: s.source, endedBy: s.endedBy, unreturned: !!s.unreturned,
+      leaveAt: s.leaveAt || null, leaveFrom: s.leaveFrom || null, leaveAlertAt: s.leaveAlertAt || null,
     };
   }
 
@@ -599,6 +629,7 @@
   // ── 공개 API ───────────────────────────────────────────────
   const Store = {
     MIN,
+    LEAVE_ALERT_MINUTES, // 퇴실 중으로 이 시간이 지나면 잔디로 알린다
     nextHour, // 지금 등록하면 끝나는 시각 (다음 정각)
     maskName,
     normalizeStudentNo,
@@ -726,11 +757,11 @@
       const st = data.students.find((s) => s.no === no && s.active);
       if (!st) fail('NOT_FOUND', '학번을 다시 확인해 주세요.');
       const s = activeFor(data, no);
-      const full = role !== 'kiosk';
+      const tablet = role === 'kiosk' || role === 'office'; // 학생용 태블릿 (보건실·학생지원실)
       return {
-        no: st.no, name: st.name, displayName: full ? st.name : maskName(st.name),
+        no: st.no, name: st.name, displayName: tablet ? maskName(st.name) : st.name,
         classNo: st.classNo || null, group: st.group || null, gender: st.gender,
-        active: s ? sessionView(data, s, role === 'kiosk' ? 'nurse' : role) : null,
+        active: s ? sessionView(data, s, tablet ? 'nurse' : role) : null,
       };
     },
 
@@ -768,6 +799,7 @@
         if (lock.until > Date.now()) fail('LOCKED', '잠시 뒤에 다시 해 주세요.', { until: lock.until });
         const s = activeFor(d, normalizeStudentNo(studentNo));
         if (!s) fail('NOT_ACTIVE', '사용 중인 침대가 없습니다.');
+        if (s.leaveAt) fail('LEAVING', '이미 퇴실을 요청했습니다.');
         if (hashCode(String(code || '')) !== d.settings.extensionCodeHash) {
           lock.fails += 1;
           if (lock.fails >= d.settings.maxCodeTries) {
@@ -787,16 +819,71 @@
       });
     },
 
-    // end_session (학생 태블릿)
-    endSession(studentNo) {
+    // 퇴실 요청 (보건실 태블릿 'kiosk' · 학생지원실 태블릿 'office'). 근무 시간과 상관없이 언제나 된다.
+    // 침대는 학생지원실에서 [퇴실 확인]을 누를 때까지 "퇴실 중"으로 남는다.
+    requestLeave({ studentNo, from }) {
       return mutate((d) => {
-        kioskOpen(d);
         const s = activeFor(d, normalizeStudentNo(studentNo));
         if (!s) fail('NOT_ACTIVE', '사용 중인 침대가 없습니다.');
-        s.status = 'ended'; s.endedAt = Date.now(); s.endedBy = 'kiosk';
-        logEvent(d, s.id, 'end', 'kiosk');
+        if (s.leaveAt) fail('LEAVING', '이미 퇴실을 요청했습니다.');
+        const by = from === 'office' ? 'office' : 'kiosk';
+        s.leaveAt = Date.now(); s.leaveFrom = by;
+        logEvent(d, s.id, 'leave-request', by);
         return sessionView(d, s, 'nurse');
       });
+    },
+
+    // 퇴실 확인: 학생지원실(보건 조교 포함)·보건 선생님·관리자가 퇴실 중인 학생을 확인하고 퇴실을 끝낸다.
+    // 학생지원실도 근무 시간과 상관없이 언제나 할 수 있다.
+    confirmLeave(sessionId, actor) {
+      return mutate((d) => {
+        const s = d.sessions.find((x) => x.id === sessionId && x.status === 'active');
+        if (!s) fail('NOT_ACTIVE', '이미 끝난 사용입니다.');
+        if (!s.leaveAt) fail('NOT_LEAVING', '퇴실을 요청하지 않은 학생입니다.');
+        s.status = 'ended'; s.endedAt = Date.now(); s.endedBy = actor;
+        logEvent(d, s.id, 'end', actor);
+        return sessionView(d, s, 'nurse');
+      });
+    },
+
+    // 잔디 알림을 보낼 화면 정하기: 열려 있는 화면이 여럿이어도 서버에 먼저 표시한 한 곳만 true를 받는다.
+    // 보내지 못했으면 releaseLeaveAlert로 표시를 지워 다음 확인 때(1분 뒤) 다시 보낸다.
+    claimLeaveAlert(sessionId) {
+      return mutateConfirmed((d) => {
+        const s = d.sessions.find((x) => x.id === sessionId && x.status === 'active');
+        if (!s || !s.leaveAt || s.leaveAlertAt) fail('TAKEN', '이미 처리했습니다.');
+        if ((s.leaveAlertTries || 0) >= LEAVE_ALERT_TRIES) fail('GAVE_UP', '여러 번 보내지 못했습니다.');
+        if (Date.now() - s.leaveAt < LEAVE_ALERT_MINUTES * MIN) fail('EARLY', '아직 시간이 되지 않았습니다.');
+        s.leaveAlertAt = Date.now();
+        s.leaveAlertTries = (s.leaveAlertTries || 0) + 1;
+      });
+    },
+
+    releaseLeaveAlert(sessionId) {
+      return mutateConfirmed((d) => {
+        const s = d.sessions.find((x) => x.id === sessionId);
+        if (!s || !s.leaveAlertAt) fail('NONE', '표시가 없습니다.');
+        s.leaveAlertAt = null;
+      });
+    },
+
+    // 잔디 알림을 보낼지: 주소가 있고, 퇴실 중으로 정한 시간이 지났고, 아직 보내지 않았고, 다시 보낼 횟수가 남은 사용
+    leaveAlertDue(now) {
+      const data = read();
+      if (!data.settings.jandiUrl) return [];
+      const t = now || Date.now();
+      return data.sessions
+        .filter((s) => s.status === 'active' && s.leaveAt && !s.leaveAlertAt && (s.leaveAlertTries || 0) < LEAVE_ALERT_TRIES && t - s.leaveAt >= LEAVE_ALERT_MINUTES * MIN)
+        .map((s) => Object.assign(sessionView(data, s, 'nurse'), { studentNo: s.studentNo }));
+    },
+
+    isJandiUrl(url) { return JANDI_URL.test(String(url || '').trim()); },
+
+    setJandiUrl(url) {
+      const u = String(url || '').trim();
+      if (u && !JANDI_URL.test(u)) fail('BAD_URL', '잔디 웹훅 주소가 아닙니다. https://wh.jandi.com/connect-api/webhook/… 로 시작하는 주소를 붙여 넣어 주세요.');
+      mutate((d) => { d.settings.jandiUrl = u; });
+      return u;
     },
 
     // nurse_extend / nurse_end / nurse_move / nurse_cancel

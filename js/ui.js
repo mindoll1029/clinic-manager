@@ -39,16 +39,23 @@
   // 끝나는 시각: 등록한 뒤 다음 정각 + 연장 시간. 예전 데이터는 등록 + 허용 분.
   function dueAt(s) { return s.dueAt || s.startedAt + (s.allowedMinutes || 60) * MIN; }
 
-  function isOver(s, now) { return !!s && now >= dueAt(s); }
+  // 퇴실을 요청한 학생(퇴실 중)은 사용 시간이 지나도 초과로 보지 않는다
+  function isOver(s, now) { return !!s && !s.leaveAt && now >= dueAt(s); }
 
   function overLabel(s) { return s.extensionCount ? '연장 시간 초과' : '사용 시간 초과'; }
+
+  // 퇴실 중: 학생이 태블릿에서 퇴실을 요청했고, 학생지원실의 퇴실 확인을 기다린다.
+  // 정한 시간(10분)이 지나도 확인되지 않으면 늦음 → 잔디로 알린다.
+  function isLeaving(s) { return !!(s && s.leaveAt); }
+  function isLeaveLate(s, now) { return isLeaving(s) && now - s.leaveAt >= window.Store.LEAVE_ALERT_MINUTES * MIN; }
+  const LEAVE_FROM = { kiosk: '보건실 태블릿', office: '학생지원실 태블릿' };
 
   // 요일 이름 (근무 일정 설정에서 쓴다)
   const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 
   const SOURCE = { nurse: '보건 선생님', kiosk: '보건실 태블릿', support: '학생지원실', assistant: '보건 조교', admin: '관리자' };
   const ZONE = { M: '남학생', F: '여학생' };
-  const ROLE = { admin: '관리자', nurse: '보건 선생님', kiosk: '학생 태블릿', support: '학생지원실' };
+  const ROLE = { admin: '관리자', nurse: '보건 선생님', kiosk: '보건실 학생 태블릿', support: '학생지원실', office: '학생지원실 학생 태블릿' };
 
   const TIER = { lower: '2층 침대 아래층', upper: '2층 침대 위층' };
 
@@ -283,6 +290,61 @@
     alert() { tone([988, 784, 988], 0.16); },
   };
 
+  // ── 잔디 알림 ──────────────────────────────────────────────
+  // 잔디 웹훅은 웹페이지에서 바로 부를 수 없어서 Netlify 서버 함수(netlify/functions/jandi.mjs)를 거쳐 보낸다.
+  // 그래서 Netlify 주소로 연 화면에서만 보낼 수 있다 (파일로 연 화면·GitHub Pages는 안 된다).
+  const JANDI_FN = '/.netlify/functions/jandi';
+  async function sendJandi(url, msg) {
+    if (location.protocol === 'file:') return { ok: false, reason: 'file' };
+    try {
+      const r = await fetch(JANDI_FN, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, body: msg.body, info: msg.info, color: msg.color }),
+      });
+      let j = null;
+      try { j = await r.json(); } catch (e) { /* 함수가 없는 곳(404 페이지) */ }
+      return { ok: r.ok && !!(j && j.ok), status: r.status, reason: j ? j.error || null : 'no-function' };
+    } catch (e) { return { ok: false, reason: 'network' }; }
+  }
+
+  function leaveMessage(s, now) {
+    const who = s.name + (s.studentNo ? ' (' + s.studentNo + ')' : '');
+    const cls = classOf(s);
+    return {
+      body: '[보건실] 퇴실 확인 필요 · ' + s.bedLabel + ' 침대 ' + s.name,
+      color: '#C62D24',
+      info: [
+        { title: '학생', description: who + (cls ? ' · ' + cls : '') },
+        { title: '침대', description: bedName(s.bedLabel, s.bedTier) },
+        { title: '퇴실 요청', description: hm(s.leaveAt) + ' · ' + (LEAVE_FROM[s.leaveFrom] || '태블릿') + ' (' + elapsedText(s.leaveAt, now) + ' 전)' },
+        { title: '확인할 일', description: '퇴실을 요청한 지 ' + window.Store.LEAVE_ALERT_MINUTES + '분이 지났지만 학생지원실에서 퇴실 확인이 되지 않았습니다. 학생이 어디에 있는지 확인해 주세요.' },
+      ],
+    };
+  }
+
+  // 퇴실 중으로 10분이 지난 학생을 잔디로 알린다. 열린 화면(PC·태블릿)마다 부르지만,
+  // 서버에 먼저 "보냄" 표시를 한 화면 하나만 보낸다. 보내지 못하면 표시를 지워 1분 뒤 다시 보낸다.
+  const leaveBusy = new Set();
+  async function watchLeave() {
+    const Store = window.Store;
+    let due = [];
+    try { due = Store.leaveAlertDue(Date.now()); } catch (e) { return; }
+    for (const s of due) {
+      if (leaveBusy.has(s.id)) continue;
+      leaveBusy.add(s.id);
+      try {
+        if (!(await Store.claimLeaveAlert(s.id))) continue;
+        const r = await App.sendJandi(Store.settings().jandiUrl, leaveMessage(s, Date.now()));
+        if (!r.ok) await Store.releaseLeaveAlert(s.id);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        leaveBusy.delete(s.id);
+      }
+    }
+  }
+
   // ── CSV ────────────────────────────────────────────────────
   function toCSV(rows) {
     return '﻿' + rows.map((r) => r.map((c) => {
@@ -324,6 +386,7 @@
   Object.assign(App, {
     esc, $, $$, MIN,
     elapsedParts, elapsedText, elapsedHTML, durationText, hm, dueAt, isOver, overLabel, classOf,
+    isLeaving, isLeaveLate, LEAVE_FROM, sendJandi, leaveMessage, watchLeave,
     WEEKDAY,
     SOURCE, ZONE, ROLE, TIER, bedName, groupBeds, josa,
     toast, dialog, confirmDialog, sound, toCSV, parseCSV, download,

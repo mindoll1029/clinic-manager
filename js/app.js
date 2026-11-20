@@ -6,14 +6,15 @@
   const AUTH_KEY = 'clinic-manager.auth';
   const TICK_MS = 60 * 1000; // 경과 시간은 60초마다 다시 계산 (PRD F-03)
 
-  const HOME = { admin: '#/admin', nurse: '#/nurse', kiosk: '#/kiosk', support: '#/support' };
+  const HOME = { admin: '#/admin', nurse: '#/nurse', kiosk: '#/kiosk', support: '#/support', office: '#/office' };
   const ALLOWED = {
-    admin: ['admin', 'nurse', 'kiosk', 'support'],
+    admin: ['admin', 'nurse', 'kiosk', 'support', 'office'],
     nurse: ['nurse'],
     kiosk: ['kiosk'],
     support: ['support'],
+    office: ['office'], // 학생지원실 학생용 태블릿
   };
-  const TITLES = { login: '로그인', admin: '관리자', nurse: '보건 선생님', kiosk: '학생용 태블릿', support: '학생지원실' };
+  const TITLES = { login: '로그인', admin: '관리자', nurse: '보건 선생님', kiosk: '학생용 태블릿', support: '학생지원실', office: '학생지원실 학생용 태블릿' };
 
   // 탭마다 따로 로그인한다. 한 PC에서 여러 화면을 동시에 시험할 수 있다.
   // 계정 이름과 기록 이름(source)은 저장된 계정에서 다시 읽는다 (바뀌어도 로그인한 탭에 바로 반영).
@@ -65,6 +66,7 @@
     else if (name === 'support') screen = App.screenSupport(host, ctx);
     else if (name === 'admin') screen = App.screenAdmin(host, ctx);
     else if (name === 'kiosk') screen = App.mountKiosk(host, ctx);
+    else if (name === 'office') screen = App.mountKiosk(host, ctx, { place: 'office' });
     paintLive();
   }
 

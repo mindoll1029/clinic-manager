@@ -138,10 +138,12 @@
       watchDuty();
       const board = Store.board('nurse'), now = Store.now();
       watchOver(board, now);
+      App.watchLeave(); // 퇴실 중으로 10분이 지난 학생은 잔디로 알린다
       const sum = App.boardSummary(board, now);
       freeEl.innerHTML = '빈 침대 <b>' + sum.free + '</b><span class="of">/ ' + sum.total + '</span>' +
         '<span class="split">남 ' + sum.freeM + ' <span class="dot">·</span> 여 ' + sum.freeF + '</span>' +
-        (sum.over ? '<span class="over-count">' + window.icon('clock') + '초과 ' + sum.over + '</span>' : '');
+        (sum.over ? '<span class="over-count">' + window.icon('clock') + '초과 ' + sum.over + '</span>' : '') +
+        (sum.leaving ? '<span class="leave-count">' + window.icon('logout') + '퇴실 중 ' + sum.leaving + '</span>' : '');
     }
 
     root.addEventListener('click', async (e) => {
@@ -304,14 +306,15 @@
   function screensHub(box) {
     const SCREENS = [
       { route: '#/nurse', icon: 'monitor', name: '보건 선생님 화면', where: '보건실 PC', does: '전체 현황, 직접 등록, 연장·퇴실·이동·취소, 기록, 설정(근무 일정 포함)' },
-      { route: '#/kiosk', icon: 'tablet', name: '학생용 태블릿', where: '보건실 입구 태블릿 + 스캐너', does: '근무 시간: 스캔 등록, 침대 고르기, 관리번호 연장, 퇴실 · 그 밖: 현황만' },
-      { route: '#/support', icon: 'building', name: '학생지원실 화면', where: '강의동 학생지원실 PC, 보건 조교', does: '등록, 현황 확인, 등록 취소, 기록, 초과 알림 · 퇴근 10분 전부터 연장·퇴실' },
+      { route: '#/kiosk', icon: 'tablet', name: '보건실 학생용 태블릿', where: '보건실 입구 태블릿 + 스캐너', does: '근무 시간: 스캔 등록, 침대 고르기, 관리번호 연장 · 퇴실 요청은 언제나 · 그 밖: 현황' },
+      { route: '#/office', icon: 'tablet', name: '학생지원실 학생용 태블릿', where: '강의동 학생지원실 태블릿', does: '스캔 → 퇴실 요청 (연장 없음)' },
+      { route: '#/support', icon: 'building', name: '학생지원실 화면', where: '강의동 학생지원실 PC, 보건 조교', does: '등록, 퇴실 확인, 현황 확인, 등록 취소, 기록, 초과 알림 · 퇴근 10분 전부터 연장·퇴실' },
     ];
     function draw() {
       const sum = App.boardSummary(Store.board('nurse'), Store.now());
       box.innerHTML =
         '<section class="panel"><header class="panel-head"><h2>화면 열기</h2>' +
-          '<p class="panel-note">관리자 계정은 세 화면을 모두 열 수 있습니다.</p></header>' +
+          '<p class="panel-note">관리자 계정은 모든 화면을 열 수 있습니다.</p></header>' +
           '<p class="hub-status">지금 침대 ' + sum.total + '자리 중 <b>' + sum.busy + '자리 사용 중</b>' +
             (sum.over ? ', 그중 <b class="is-over">' + window.icon('clock') + sum.over + '자리는 시간 초과</b>' : '') +
             '입니다. 오늘 이용 ' + Store.records(null, 'admin').filter((r) => r.status !== 'cancelled').length + '명.</p>' +

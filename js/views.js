@@ -30,7 +30,9 @@
               '<td class="num">' + App.elapsedText(r.startedAt, end) + '</td>' +
               '<td class="num">' + (r.extensionCount ? r.extensionCount + '회' : '–') + '</td>' +
               '<td>' + esc(App.SOURCE[r.source] || r.source) + '</td>' +
-              '<td>' + (r.status === 'active' && App.isOver(r, now)
+              '<td>' + (r.status === 'active' && App.isLeaving(r)
+                ? '<span class="status status-leaving' + (App.isLeaveLate(r, now) ? ' is-late' : '') + '">' + window.icon('logout') + '퇴실 중 ' + App.elapsedText(r.leaveAt, now) + '</span>'
+                : r.status === 'active' && App.isOver(r, now)
                 ? '<span class="status status-over">' + window.icon('clock') + App.overLabel(r) + '</span>'
                 : '<span class="status status-' + r.status + (r.unreturned ? ' is-auto' : '') + '">' + (r.unreturned ? '미퇴실 종료' : STATUS[r.status]) + '</span>') + '</td>' +
             '</tr>';
@@ -57,7 +59,7 @@
         ['날짜', '시작', '종료', '침대', '학번', '이름', '반', '그룹', '사용 시간(분)', '연장 횟수', '등록 위치', '상태'],
         ...rows.map((r) => [day, App.hm(r.startedAt), r.endedAt ? App.hm(r.endedAt) : '', r.bedLabel, r.studentNo, r.name, r.classNo || '', r.group || '',
           Math.floor(((r.endedAt || now) - r.startedAt) / App.MIN), r.extensionCount, App.SOURCE[r.source] || r.source,
-          r.unreturned ? '미퇴실 종료' : r.status === 'active' && App.isOver(r, now) ? '사용 중(' + App.overLabel(r) + ')' : STATUS[r.status]]),
+          r.unreturned ? '미퇴실 종료' : r.status === 'active' && App.isLeaving(r) ? '퇴실 중' : r.status === 'active' && App.isOver(r, now) ? '사용 중(' + App.overLabel(r) + ')' : STATUS[r.status]]),
       ]));
     });
     draw();
@@ -179,6 +181,13 @@
             '<label class="field"><span>한 번 더</span><input name="code2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" required></label>' +
             '<div class="row-actions"><span class="spacer"></span><button class="btn btn-primary">관리번호 바꾸기</button></div>' +
           '</form></section>' +
+        '<section class="panel" id="set-jandi"><header class="panel-head"><h2>잔디 알림</h2><p class="panel-note">학생이 퇴실을 요청하고 ' + Store.LEAVE_ALERT_MINUTES + '분이 지나도 학생지원실에서 퇴실 확인이 되지 않으면 잔디 대화방으로 알립니다.</p></header>' +
+          '<form class="form-grid" data-form="jandi">' +
+            '<label class="field field-full"><span>잔디 웹훅 주소</span><input name="jandiUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://wh.jandi.com/connect-api/webhook/…" value="' + esc(st.jandiUrl || '') + '"></label>' +
+            '<p class="field-help">잔디 대화방에서 연동(커넥트) → Incoming Webhook을 추가하면 주소를 받을 수 있습니다. 비워 두고 저장하면 보내지 않습니다.</p>' +
+            '<div class="row-actions"><button type="button" class="btn btn-ghost" data-jandi-test>' + window.icon('bell') + '<span>테스트 보내기</span></button>' +
+              '<span class="spacer"></span><button class="btn btn-primary">저장</button></div>' +
+          '</form></section>' +
         (role === 'admin' ? accountsHTML() : '') +
         '</div>';
     }
@@ -230,6 +239,25 @@
     });
     container.addEventListener('click', async (e) => {
       if (e.target.closest('[data-preview-alert]')) { App.previewOverAlert('사용 시간이 지나면 이렇게 알립니다. 실제 알림 때 알림음은 위 체크 상자가 켜져 있을 때만 울립니다.'); return; } // 윈도우 알림 허용도 여기서 물어본다
+      const jt = e.target.closest('[data-jandi-test]');
+      if (jt) {
+        // 저장하지 않은 주소도 시험할 수 있다 (입력 칸에 적힌 주소로 보낸다)
+        const url = jt.form.jandiUrl.value.trim();
+        if (!Store.isJandiUrl(url)) { App.toast('잔디 웹훅 주소가 아닙니다. https://wh.jandi.com/connect-api/webhook/… 로 시작하는 주소를 붙여 넣어 주세요.', 'error'); return; }
+        jt.disabled = true;
+        const r = await App.sendJandi(url, {
+          body: '[보건실] 잔디 알림 테스트',
+          color: '#263035',
+          info: [{ title: '안내', description: '보건실 침대 현황에서 보낸 테스트 메시지입니다. 학생이 퇴실을 요청하고 ' + Store.LEAVE_ALERT_MINUTES + '분이 지나도 학생지원실에서 퇴실 확인이 되지 않으면 이 대화방으로 알립니다.' }],
+        });
+        jt.disabled = false;
+        if (r.ok) App.toast('잔디로 테스트 메시지를 보냈습니다. 잔디 대화방을 확인해 주세요');
+        else App.toast(r.reason === 'file' || r.reason === 'no-function'
+          ? '이 화면에서는 잔디로 보낼 수 없습니다. Netlify 주소(…netlify.app)로 연 화면에서 해 주세요.'
+          : r.reason === 'network' ? '잔디로 보내지 못했습니다. 인터넷 연결을 확인해 주세요.'
+          : '잔디로 보내지 못했습니다. ' + (r.reason || '주소를 다시 확인해 주세요.'), 'error');
+        return;
+      }
       const del = e.target.closest('[data-duty-del]');
       if (del) {
         const date = del.dataset.dutyDel;
@@ -291,6 +319,12 @@
         if (f.alertSoundSupport) patch.alertSoundSupport = f.alertSoundSupport.checked;
         Store.updateSettings(patch);
         App.toast('사용 시간과 연장 설정을 저장했습니다');
+      } else if (f.dataset.form === 'jandi') {
+        try {
+          const u = Store.setJandiUrl(f.jandiUrl.value);
+          f.jandiUrl.value = u;
+          App.toast(u ? '잔디 알림 주소를 저장했습니다' : '잔디 알림을 껐습니다');
+        } catch (err) { App.toast(err.message, 'error'); }
       } else if (f.dataset.form === 'code') {
         if (f.code.value !== f.code2.value) { App.toast('두 번 입력한 관리번호가 다릅니다.', 'error'); return; }
         try { Store.setExtensionCode(f.code.value); f.reset(); App.toast('관리번호를 바꿨습니다'); }

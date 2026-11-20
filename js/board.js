@@ -8,11 +8,15 @@
   const memory = new WeakMap(); // 컨테이너별로 이전 상태를 기억해 움직임을 정한다
 
   function summary(board, now) {
-    const s = { total: board.length, free: 0, freeM: 0, freeF: 0, busy: 0, over: 0, totalM: 0, totalF: 0 };
+    const s = { total: board.length, free: 0, freeM: 0, freeF: 0, busy: 0, over: 0, leaving: 0, totalM: 0, totalF: 0 };
     board.forEach((b) => {
       if (b.zone === 'M') s.totalM++; else s.totalF++;
       if (!b.session) { s.free++; if (b.zone === 'M') s.freeM++; else s.freeF++; }
-      else { s.busy++; if (App.isOver(b.session, now)) s.over++; }
+      else {
+        s.busy++;
+        if (App.isOver(b.session, now)) s.over++;
+        if (App.isLeaving(b.session)) s.leaving++;
+      }
     });
     return s;
   }
@@ -29,6 +33,7 @@
         (canRegister ? '<button class="btn btn-quiet slot-add" data-act="register-here" data-bed="' + b.id + '" aria-label="' + esc(App.bedName(b.label, b.tier)) + '에 등록">' + window.icon('plus') + '<span>여기에 등록</span></button>' : '') +
         '</article>';
     }
+    if (App.isLeaving(s)) return leavingHTML(b, s, opts, now, motion, no);
     const over = App.isOver(s, now);
     const cls = ['slot', 'is-busy'];
     if (b.tier) cls.push('is-tier', 'tier-' + b.tier);
@@ -81,6 +86,35 @@
     '</article>';
   }
 
+  // 퇴실 중: 학생이 태블릿에서 퇴실을 요청했다. 학생지원실에서 학생을 확인하고 [퇴실 확인]을 누르면 끝난다.
+  // 큰 숫자는 퇴실을 요청한 뒤 지난 시간(분). 10분이 지나도 확인되지 않으면 "퇴실 확인 안 됨"을 붙이고 잔디로 알린다.
+  // 학생지원실은 근무 시간과 상관없이 언제나 [퇴실 확인]을 누를 수 있다.
+  function leavingHTML(b, s, opts, now, motion, no) {
+    const late = App.isLeaveLate(s, now);
+    const cls = ['slot', 'is-busy', 'is-leaving'];
+    if (b.tier) cls.push('is-tier', 'tier-' + b.tier);
+    if (late) cls.push('is-late');
+    if (motion.added.has(s.id)) cls.push('snap-in');
+    const showNo = opts.mode === 'nurse' || opts.mode === 'admin';
+    const from = App.LEAVE_FROM[s.leaveFrom] || '태블릿';
+    const at = App.hm(s.leaveAt);
+    const actions = opts.mode === 'nurse' || opts.mode === 'support'
+      ? '<div class="tag-actions"><button class="btn btn-primary" data-act="leave-ok" data-id="' + s.id + '">' + window.icon('check') + '<span>퇴실 확인</span></button></div>'
+      : '';
+    return '<article class="' + cls.join(' ') + '" data-bed="' + b.id + '" data-session="' + s.id + '">' + no +
+      '<div class="tag">' +
+        '<div class="tag-top"><span class="tag-bed">' + esc(b.label) + ' 침대</span><span class="chip chip-leave">' + window.icon('logout') + '<span>퇴실 중</span></span></div>' +
+        '<h3 class="tag-name"><span class="tag-who">' + esc(s.name) + '</span>' +
+          (showNo && s.studentNo ? '<span class="tag-no"><span class="sr">학번 </span>' + esc(s.studentNo) + '</span>' : '') + '</h3>' +
+        '<p class="tag-meta" title="' + esc(from + '에서 ' + at + '에 퇴실 요청') + '"><span class="meta-item"><b>' + esc(from) + '</b>에서 <b>' + at + '</b>에 퇴실 요청</span></p>' +
+        (late ? '<p class="tag-alert">' + window.icon('clock') + '<span>퇴실 확인 안 됨</span></p>' : '') +
+        '<p class="tag-time" aria-label="퇴실 요청 후 ' + App.elapsedText(s.leaveAt, now) + '">' + App.elapsedHTML(s.leaveAt, now) + '</p>' +
+        '<p class="tag-left">' + (s.leaveAlertAt ? '잔디로 알렸습니다 · ' : '') + '학생지원실에서 확인하면 퇴실이 끝납니다</p>' +
+        actions +
+      '</div>' +
+    '</article>';
+  }
+
   function zoneHTML(zone, beds, opts, now, motion) {
     const used = beds.filter((b) => b.session).length;
     const cells = App.groupBeds(beds);
@@ -110,7 +144,7 @@
     // 바뀐 것이 없으면 다시 그리지 않는다 (같은 변경 알림이 두 번 와도 자석 움직임이 끊기지 않게)
     // 초과로 넘어간 침대도 넣어 둔다 (분이 바뀌지 않아도 초과 순간을 놓치지 않게)
     const sig = opts.mode + '|' + !!opts.manage + '|' + Math.floor(now / App.MIN) + '|' + [...overIds].join(',') + '|' + JSON.stringify(board.map((b) => [b.id, b.label, b.zone, b.tier,
-      b.session && [b.session.id, b.session.name, b.session.startedAt, b.session.dueAt, b.session.extensionCount]]));
+      b.session && [b.session.id, b.session.name, b.session.startedAt, b.session.dueAt, b.session.extensionCount, b.session.leaveAt, b.session.leaveAlertAt]]));
     if (prev && prev.sig === sig && !opts._afterLift) return summary(board, now);
 
     // 퇴실·취소된 자석은 먼저 떼어 낸 뒤 다시 그린다
@@ -239,6 +273,11 @@
         return false;
       }
     }
+    // 퇴실 중인 학생의 학생증을 스캔하면 바로 퇴실 확인 (학생지원실에 온 학생을 확인할 때)
+    if (student.active && App.isLeaving(student.active)) {
+      App.sound.ok();
+      return confirmLeave(student.active, source);
+    }
     if (student.active) {
       App.sound.error();
       App.toast(student.name + ' 학생은 이미 ' + student.active.bedLabel + ' 침대를 사용 중입니다.', 'error');
@@ -265,6 +304,37 @@
       const s = Store.registerSession({ studentNo: student.no, bedId, source, tempName: student.temp ? student.name : undefined });
       App.sound.ok();
       App.toast(student.name + ' 학생 · ' + App.bedName(s.bedLabel, s.bedTier) + ' 배정');
+      return true;
+    } catch (e) {
+      App.sound.error();
+      App.toast(e.message, 'error');
+      return false;
+    }
+  }
+
+  // ── 퇴실 확인 (학생지원실·보건 선생님) ─────────────────────
+  // s: 퇴실 중인 사용 (sessionView). 학생 얼굴과 이름·학번을 확인한 뒤 누른다.
+  async function confirmLeave(s, actor) {
+    const now = Store.now();
+    const ok = await App.dialog({
+      title: '퇴실 확인',
+      className: 'sheet-confirm',
+      body: '<p class="sheet-text"><b>' + esc(s.name) + '</b> 학생이 맞는지 확인한 뒤 퇴실을 끝냅니다.</p>' +
+        '<dl class="facts">' +
+          '<div><dt>학생</dt><dd>' + esc([s.studentNo, App.classOf(s)].filter(Boolean).join(' · ') || '–') + '</dd></div>' +
+          '<div><dt>침대</dt><dd>' + esc(App.bedName(s.bedLabel, s.bedTier)) + ' · ' + App.elapsedText(s.startedAt, s.leaveAt) + ' 사용</dd></div>' +
+          '<div><dt>퇴실 요청</dt><dd>' + App.hm(s.leaveAt) + ' · ' + esc(App.LEAVE_FROM[s.leaveFrom] || '태블릿') + ' (' + App.elapsedText(s.leaveAt, now) + ' 전)</dd></div>' +
+        '</dl>',
+      actions: [
+        { label: '돌아가기', value: '__cancel' },
+        { label: '퇴실 확인', value: 'yes', kind: 'primary', icon: 'check' },
+      ],
+    });
+    if (ok !== 'yes') return false;
+    try {
+      Store.confirmLeave(s.id, actor);
+      App.sound.ok();
+      App.toast(s.name + ' 학생 퇴실 확인');
       return true;
     } catch (e) {
       App.sound.error();
@@ -349,6 +419,10 @@
           if (go !== 'yes') return;
           Store.staffExtend(id, actor);
           App.toast(s.name + ' 학생 ' + st.extendMinutes + '분 연장');
+        } else if (btn.dataset.act === 'leave-ok') {
+          const b = find();
+          if (!b) return;
+          await confirmLeave(b.session, actor);
         } else if (btn.dataset.act === 'end') {
           const b = find();
           if (!b) return;

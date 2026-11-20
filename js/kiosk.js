@@ -1,5 +1,9 @@
-/* 학생용 태블릿 화면: 스캔 → 침대 고르기 → 완료, 사용 중이면 퇴실·연장.
-   보건 선생님 근무 시간 밖에는 현황만 보여 준다 (등록·연장·퇴실은 학생지원실에서). */
+/* 학생용 태블릿 화면 (두 곳이 같은 코드를 쓴다)
+   - 보건실 태블릿 (#/kiosk): 스캔 → 침대 고르기 → 완료, 사용 중이면 퇴실 요청·연장.
+     보건 선생님 근무 시간 밖에는 현황을 보여 주고 퇴실 요청만 받는다 (등록·연장은 학생지원실에서).
+   - 학생지원실 태블릿 (#/office): 언제나 스캔 화면. 사용 중인 학생의 퇴실 요청만 받는다 (연장 없음).
+   퇴실 요청: "퇴실을 요청하겠습니까?" → [예] → 안내 창 → [확인했어요]를 누르면 모든 화면에 "퇴실 중"으로 보이고,
+   학생지원실 PC에서 학생을 확인하고 [퇴실 확인]을 눌러야 퇴실이 끝난다. */
 (function () {
   'use strict';
   const App = window.App;
@@ -20,6 +24,7 @@
     ALREADY_ACTIVE: '이미 침대를 쓰고 있어요.',
     BED_TAKEN: '방금 다른 학생이 그 침대를 골랐어요. 다른 침대를 골라 주세요.',
     NO_BED_CHOSEN: '침대를 골라 주세요.',
+    LEAVING: '이미 퇴실을 요청했어요.',
   };
   const say = (e) => SAY[e.code] || e.message;
 
@@ -42,32 +47,47 @@
     } catch (e) { /* 무시 */ }
   }
 
-  function mount(root, ctx) {
+  // 근무 시간 밖에 보건실 태블릿에서 할 수 없는 단계 (이 단계에 있으면 현황 화면으로 바꾼다)
+  const DUTY_STEPS = ['scan', 'pick', 'choice', 'code'];
+
+  function mount(root, ctx, opts) {
+    // office: 학생지원실 학생용 태블릿. 근무 시간과 상관없이 언제나 열려 있고, 퇴실 요청만 받는다.
+    const office = !!(opts && opts.place === 'office');
+    const place = office ? 'office' : 'kiosk';
+    const dutyOn = () => office || Store.duty().on;
     let state = { step: 'scan' };
     let scanBuf = '';
     let idleTimer = null, stepTimer = null, lockTimer = null;
     let selfWrite = false; // 이 태블릿이 방금 바꾼 내용이면 "다른 학생이 골랐어요"를 띄우지 않는다
 
+    const brandName = office ? '학생지원실' : '보건실';
     root.innerHTML =
-      '<div class="kiosk">' +
+      '<div class="kiosk' + (office ? ' is-office' : '') + '">' +
         '<header class="k-top">' +
-          '<button type="button" class="k-brand" aria-label="보건실 (길게 누르면 관리 메뉴)">' + window.icon('bed') + '<span>보건실</span></button>' +
+          '<button type="button" class="k-brand" aria-label="' + brandName + ' (길게 누르면 관리 메뉴)">' + window.icon(office ? 'building' : 'bed') + '<span>' + brandName + '</span></button>' +
           '<p class="k-free" aria-live="polite"></p>' +
           '<p class="live" data-live></p>' +
           '<button type="button" class="k-fs" data-fs aria-label="전체 화면으로 보기">' + window.icon('maximize') + '<span>전체 화면</span></button>' +
         '</header>' +
         '<main class="k-stage"></main>' +
         '<input class="k-scan-input" inputmode="none" autocomplete="off" aria-hidden="true" tabindex="-1">' +
+        // 퇴실 요청 안내 창: [확인했어요]를 눌러야 퇴실 중이 된다
+        '<dialog class="k-modal" aria-labelledby="k-modal-title"></dialog>' +
       '</div>';
     const stage = root.querySelector('.k-stage');
     const freeEl = root.querySelector('.k-free');
     const hidden = root.querySelector('.k-scan-input');
+    const modal = root.querySelector('.k-modal');
+    modal.addEventListener('cancel', (e) => e.preventDefault()); // Esc로 닫지 않는다 (확인 버튼 또는 시간이 지나면 닫힌다)
+
+    function closeModal() { if (modal.open) modal.close(); }
 
     function go(next) {
       clearTimeout(stepTimer);
       clearInterval(lockTimer);
-      // 근무 시간 밖에는 처음 화면 대신 현황 화면(off)을 연다
-      const on = Store.duty().on;
+      closeModal();
+      // 근무 시간 밖에는 처음 화면 대신 현황 화면(off)을 연다 (학생지원실 태블릿은 언제나 처음 화면)
+      const on = dutyOn();
       if (next.step === 'scan' && !on) next = { step: 'off' };
       else if (next.step === 'off' && on) next = { step: 'scan' };
       state = Object.assign({}, next);
@@ -87,9 +107,11 @@
 
     // 근무 시간이 시작되거나 끝나면 화면을 바꾼다. 바꿨으면 true.
     // 완료 화면은 5초 뒤 처음 화면으로 갈 때 바뀐다 (방금 등록한 학생이 침대 번호를 볼 수 있게).
+    // 퇴실 요청(학번 입력·확인·안내 창)은 근무 시간 밖에도 하므로 그대로 둔다.
     function syncDuty() {
+      if (office) return false;
       const on = Store.duty().on;
-      if (!on && state.step !== 'off' && state.step !== 'done') { go({ step: 'off' }); return true; }
+      if (!on && DUTY_STEPS.includes(state.step)) { go({ step: 'off' }); return true; }
       if (on && state.step === 'off') { go({ step: 'scan' }); return true; }
       return false;
     }
@@ -123,15 +145,16 @@
       const bedBtn = (b, mine) => {
         const s = b.session;
         const over = s && App.isOver(s, now);
+        const leaving = App.isLeaving(s); // 퇴실 중: 시간 자리에 "퇴실 중 3분"
         const can = !!student && !s && mine;
-        return '<button type="button" class="k-bed' + (s ? ' is-busy' : ' is-free') + (over ? ' is-over' : '') + (b.tier ? ' is-tier' : '') + (selected === b.id ? ' is-picked' : '') + '"' +
+        return '<button type="button" class="k-bed' + (s ? ' is-busy' : ' is-free') + (over ? ' is-over' : '') + (leaving ? ' is-leaving' : '') + (b.tier ? ' is-tier' : '') + (selected === b.id ? ' is-picked' : '') + '"' +
           (can ? ' data-bed="' + b.id + '" aria-pressed="' + (selected === b.id) + '"' : ' disabled') +
-          ' aria-label="' + esc(App.bedName(b.label, b.tier)) + (s ? ' 사용 중' : mine ? ' 비어 있음' : '') + '">' +
+          ' aria-label="' + esc(App.bedName(b.label, b.tier)) + (leaving ? ' 퇴실 중' : s ? ' 사용 중' : mine ? ' 비어 있음' : '') + '">' +
           // k-bed-in: 칸 크기에 따라 번호와 상태를 위아래 또는 한 줄로 놓는다 (css: @container)
           '<span class="k-bed-in">' +
             '<span class="k-bed-no">' + esc(b.label) + (b.tier ? '<small>' + (b.tier === 'upper' ? '위층' : '아래층') + '</small>' : '') + '</span>' +
             // 이름과 경과 시간을 나눠 둔다: 자리가 모자라면 이름만 "…"로 줄이고 시간은 끝까지 보인다
-            '<span class="k-bed-state">' + (s ? (over ? window.icon('clock') : '') + '<span class="k-bed-who">' + esc(s.name) + '</span><span class="k-bed-time">' + App.elapsedText(s.startedAt, now) + '</span>' : mine ? '<span class="k-bed-who">비어 있음</span>' : '') + '</span>' +
+            '<span class="k-bed-state">' + (s ? (over ? window.icon('clock') : leaving ? window.icon('logout') : '') + '<span class="k-bed-who">' + esc(s.name) + '</span><span class="k-bed-time">' + (leaving ? '퇴실 중 ' + App.elapsedText(s.leaveAt, now) : App.elapsedText(s.startedAt, now)) + '</span>' : mine ? '<span class="k-bed-who">비어 있음</span>' : '') + '</span>' +
           '</span>' +
           (selected === b.id ? '<span class="k-bed-check">' + window.icon('check') + '</span>' : '') +
         '</button>';
@@ -157,16 +180,17 @@
         html = '<section class="k-step k-scan">' +
           '<div class="k-scan-mark" aria-hidden="true">' + window.icon('scan') + '<span class="k-beam"></span></div>' +
           '<h1>학생증 바코드를<br>스캔해주세요</h1>' +
-          '<p class="k-sub">처음 쉬러 왔을 때도, 다 쉬고 나갈 때도 스캔해요.</p>' +
+          '<p class="k-sub">' + (office ? '보건실에서 다 쉬고 왔으면 스캔하고 퇴실을 요청해요.' : '처음 쉬러 왔을 때도, 다 쉬고 나갈 때도 스캔해요.') + '</p>' +
           '<button type="button" class="btn btn-ghost btn-xl" data-go="type">' + window.icon('keypad') + '<span>학번 입력</span></button>' +
         '</section>';
       } else if (s.step === 'off') {
-        // 근무 시간 밖: 현황만. 스캔하면 안내가 잠깐 흔들린다.
+        // 근무 시간 밖: 현황과 퇴실 요청만. 사용 중이 아닌 학생이 스캔하면 안내가 잠깐 흔들린다.
         html = '<section class="k-step k-pick k-off">' +
           '<header class="k-off-head' + (s.nudge ? ' is-nudge' : '') + '">' +
             '<span class="k-off-mark" aria-hidden="true">' + window.icon('moon') + '</span>' +
             '<div class="k-off-text"><h1>지금은 보건 선생님이 안 계세요</h1>' +
-              '<p class="k-sub">등록·연장·퇴실은 <b>강의동 학생지원실</b>에서 하세요.</p></div>' +
+              '<p class="k-sub">등록·연장은 <b>강의동 학생지원실</b>에서 하세요.<br>다 쉬었으면 학생증을 스캔하고 퇴실을 요청해요.</p></div>' +
+            '<button type="button" class="btn btn-ghost btn-xl k-off-type" data-go="type">' + window.icon('keypad') + '<span>학번 입력</span></button>' +
           '</header>' +
           bedGrid(null) +
         '</section>';
@@ -194,18 +218,19 @@
           '<h1><b>' + esc(s.student.name) + '</b> 학생은 휴식 중입니다</h1>' +
           '<p class="k-elapsed' + (over ? ' is-over' : '') + '">' + (over ? window.icon('clock') : '') + '<span>' + App.elapsedText(a.startedAt, now) + ' 사용</span>' + (over ? '<span class="chip chip-over">' + App.overLabel(a) + '</span>' : '') + '</p>' +
           '<div class="k-choices">' +
-            '<button type="button" class="k-choice-btn is-primary" data-go="confirmEnd">' + window.icon('logout') + '<b>퇴실하기</b><small>다 쉬었어요</small></button>' +
+            '<button type="button" class="k-choice-btn is-primary" data-go="confirmLeave">' + window.icon('logout') + '<b>퇴실하기</b><small>다 쉬었어요</small></button>' +
             '<button type="button" class="k-choice-btn" data-go="code">' + window.icon('plus') + '<b>연장하기</b><small>관리번호가 필요해요</small></button>' +
           '</div>' +
           '<button type="button" class="btn btn-ghost btn-lg" data-go="scan">' + window.icon('back') + '<span>처음으로</span></button>' +
         '</section>';
-      } else if (s.step === 'confirmEnd') {
+      } else if (s.step === 'confirmLeave') {
+        // [아니요]는 연장·퇴실 고르기(보건실, 근무 시간)나 처음 화면으로 돌아간다
         const a = s.student.active;
         html = '<section class="k-step k-confirm">' +
-          '<h1>퇴실하겠습니까?</h1>' +
-          '<p class="k-sub"><b>' + esc(s.student.name) + '</b> · ' + App.elapsedText(a.startedAt, now) + ' 사용</p>' +
-          '<div class="k-confirm-actions"><button type="button" class="btn btn-ghost btn-xl" data-go="choice">돌아가기</button>' +
-          '<button type="button" class="btn btn-primary btn-xl" data-act="end">' + window.icon('check') + '<span>퇴실 확인</span></button></div>' +
+          '<h1>퇴실을 요청하겠습니까?</h1>' +
+          '<p class="k-sub"><b>' + esc(s.student.name) + '</b> · ' + esc(App.bedName(a.bedLabel, a.bedTier)) + ' · ' + App.elapsedText(a.startedAt, now) + ' 사용</p>' +
+          '<div class="k-confirm-actions"><button type="button" class="btn btn-ghost btn-xl" data-go="' + (s.back || 'scan') + '">아니요</button>' +
+          '<button type="button" class="btn btn-primary btn-xl" data-act="leave">' + window.icon('check') + '<span>예</span></button></div>' +
         '</section>';
       } else if (s.step === 'code') {
         const buf = s.buf || '';
@@ -226,7 +251,7 @@
         } else root.classList.remove('is-locked');
       } else if (s.step === 'done') {
         html = '<section class="k-step k-done">' +
-          '<div class="k-done-mark">' + window.icon('check') + '</div>' +
+          '<div class="k-done-mark">' + window.icon(s.mark || 'check') + '</div>' +
           '<h1>' + s.title + '</h1>' +
           (s.sub ? '<p class="k-sub">' + sentenceLines(s.sub) + '</p>' : '') +
           '<div class="k-countdown" aria-hidden="true"><span></span></div>' +
@@ -250,20 +275,61 @@
         .map(line => '<span class="nowrap">' + line + '</span>').join('<br>');
     }
 
+    // 이미 퇴실을 요청한 학생이 다시 스캔했을 때
+    function leavingAgain(st) {
+      return go({ step: 'done', mark: 'logout', title: '이미 퇴실을 요청했어요',
+        sub: (office ? '학생지원실 선생님께 퇴실 확인을 받으세요.' : '학생지원실로 가서 선생님께 퇴실 확인을 받으세요.') + ' 요청한 시각 ' + App.hm(st.active.leaveAt) + '.' });
+    }
+
     function lookup(raw) {
-      if (!Store.duty().on) { App.sound.error(); return go({ step: 'off', nudge: true }); }
+      const on = dutyOn();
       let st;
-      try { st = Store.lookupStudent(raw, 'kiosk'); }
+      try { st = Store.lookupStudent(raw, place); }
       catch (e) {
         App.sound.error();
         if (state.step === 'type') return go({ step: 'type', buf: '', error: say(e) });
-        return go({ step: 'error', message: say(e), sub: '그래도 안 되면 보건 선생님께 말해 주세요.' });
+        return go({ step: 'error', message: say(e), sub: '그래도 안 되면 ' + (office ? '학생지원실' : '보건') + ' 선생님께 말해 주세요.' });
       }
-      App.sound.ok();
-      if (st.active) return go({ step: 'choice', student: st });
+      // 사용 중인 학생: 퇴실 요청은 언제나 된다. 연장은 보건실 태블릿에서 근무 시간에만.
+      if (st.active) {
+        App.sound.ok();
+        if (App.isLeaving(st.active)) return leavingAgain(st);
+        if (office || !on) return go({ step: 'confirmLeave', student: st, back: 'scan' });
+        return go({ step: 'choice', student: st });
+      }
+      App.sound.error();
+      if (office) return go({ step: 'error', message: '보건실을 사용하고 있지 않아요.', sub: '보건실에서 쉬어야 하면 학생지원실 선생님께 말해 주세요.' });
+      if (!on) return go({ step: 'off', nudge: true });
       const free = Store.board('kiosk').filter((b) => !b.session && (!st.gender || b.zone === st.gender));
-      if (!free.length) { App.sound.error(); return go({ step: 'error', message: '지금은 빈 침대가 없습니다.', sub: '보건 선생님께 말해 주세요.' }); }
+      if (!free.length) return go({ step: 'error', message: '지금은 빈 침대가 없습니다.', sub: '보건 선생님께 말해 주세요.' });
+      App.sound.ok();
       go({ step: 'pick', student: st, bedId: null });
+    }
+
+    // [예]를 누르면 안내 창. [확인했어요]를 눌러야 퇴실 요청이 저장된다 ("퇴실 중").
+    function openLeaveModal() {
+      modal.innerHTML =
+        '<div class="k-modal-mark" aria-hidden="true">' + window.icon(office ? 'users' : 'building') + '</div>' +
+        '<h2 id="k-modal-title">' + (office ? '학생지원실 선생님께<br>퇴실 확인을 받으세요' : '학생지원실로 이동하세요') + '</h2>' +
+        '<p class="k-sub">' + (office ? '선생님이 확인해야 퇴실이 끝나요.' : '강의동 학생지원실 선생님이 확인해야 퇴실이 끝나요.') + '</p>' +
+        '<button type="button" class="btn btn-primary btn-xl" data-act="leave-ack">' + window.icon('check') + '<span>확인했어요</span></button>';
+      modal.showModal();
+      modal.querySelector('[data-act=leave-ack]').focus();
+      armIdle();
+    }
+
+    function ackLeave() {
+      try {
+        selfWrite = true;
+        try { Store.requestLeave({ studentNo: state.student.no, from: place }); }
+        finally { selfWrite = false; }
+        App.sound.ok();
+        go({ step: 'done', mark: 'logout', title: '퇴실을 요청했어요',
+          sub: office ? '선생님께 퇴실 확인을 받으세요.' : '학생지원실로 가서 선생님께 퇴실 확인을 받으세요.' });
+      } catch (e) {
+        App.sound.error();
+        go({ step: 'error', message: say(e) });
+      }
     }
 
     function pressKey(k) {
@@ -311,10 +377,11 @@
         const to = goBtn.dataset.go;
         if (to === 'type') return go({ step: 'type', buf: '' });
         if (to === 'code') return go({ step: 'code', student: state.student, buf: '' });
-        if (to === 'choice' || to === 'confirmEnd') {
-          const fresh = Store.lookupStudent(state.student.no, 'kiosk');
+        if (to === 'choice' || to === 'confirmLeave') {
+          const fresh = Store.lookupStudent(state.student.no, place);
           if (!fresh.active) return go({ step: 'scan' });
-          return go({ step: to, student: fresh });
+          if (App.isLeaving(fresh.active)) return leavingAgain(fresh);
+          return go({ step: to, student: fresh, back: to === 'confirmLeave' ? 'choice' : undefined });
         }
         return go({ step: to });
       }
@@ -331,7 +398,7 @@
           try { r = Store.registerSession({ studentNo: state.student.no, bedId: state.bedId, source: 'kiosk' }); }
           finally { selfWrite = false; }
           App.sound.ok();
-          go({ step: 'done', title: esc(App.bedName(r.bedLabel, r.bedTier)) + '로 가서 쉬세요', sub: '다 쉬면 다시 스캔하고 퇴실해요.' });
+          go({ step: 'done', title: esc(App.bedName(r.bedLabel, r.bedTier)) + '로 가서 쉬세요', sub: '다 쉬면 다시 스캔하고 퇴실을 요청해요.' });
         } catch (e) {
           App.sound.error();
           if (e.code === 'BED_TAKEN') { state = Object.assign({}, state, { bedId: null }); draw(); App.toast(say(e), 'error'); }
@@ -339,13 +406,8 @@
           else go({ step: 'error', message: say(e) });
         }
       }
-      if (act && act.dataset.act === 'end') {
-        try {
-          const r = Store.endSession(state.student.no);
-          App.sound.ok();
-          go({ step: 'done', title: '퇴실했어요', sub: App.elapsedText(r.startedAt, r.endedAt) + ' 사용<br>몸조리 잘 해요.' });
-        } catch (e) { App.sound.error(); go(e.code === 'OFF_DUTY' ? { step: 'off', nudge: true } : { step: 'error', message: say(e) }); }
-      }
+      if (act && act.dataset.act === 'leave' && state.step === 'confirmLeave') return openLeaveModal();
+      if (act && act.dataset.act === 'leave-ack' && state.step === 'confirmLeave') return ackLeave();
       keepFocus();
     });
 
@@ -387,14 +449,14 @@
       const fsOn = !!fsElement();
       const v = await App.dialog({
         title: '관리 메뉴',
-        body: '<p class="sheet-text">태블릿에서 로그아웃' + (fsOn ? '하거나 전체 화면을 끝내' : '하') + '려면 보건 선생님 또는 관리자 비밀번호를 입력해 주세요.</p>' +
+        body: '<p class="sheet-text">태블릿에서 로그아웃' + (fsOn ? '하거나 전체 화면을 끝내' : '하') + '려면 ' + (office ? '학생지원실, 보건 선생님 또는 관리자' : '보건 선생님 또는 관리자') + ' 비밀번호를 입력해 주세요.</p>' +
           '<label class="field"><span>비밀번호</span><input name="pw" type="password" autocomplete="current-password" autofocus></label><p class="field-error" hidden>비밀번호가 맞지 않습니다.</p>',
         actions: [{ label: '취소', value: '__cancel' }]
           .concat(fsOn ? [{ label: '전체 화면 끝내기', value: 'fs-off', kind: 'ghost', icon: 'minimize' }] : [])
           .concat([{ label: '로그아웃', value: 'out', kind: 'danger', icon: 'logout' }]),
         onSubmit(dlg) {
           const pw = dlg.querySelector('[name=pw]').value;
-          if (!Store.verifyPassword(['nurse', 'admin'], pw)) { dlg.querySelector('.field-error').hidden = false; return false; }
+          if (!Store.verifyPassword(office ? ['nurse', 'admin', 'support'] : ['nurse', 'admin'], pw)) { dlg.querySelector('.field-error').hidden = false; return false; }
         },
       });
       if (v === 'fs-off' || v === 'out') fsExit();
@@ -409,24 +471,27 @@
         // 다른 화면에서 바뀐 내용을 반영한다. 입력 중인 단계는 건드리지 않는다.
         // 근무 일정이 바뀌어 근무 시간이 끝났으면 입력 중이어도 현황 화면으로 바꾼다.
         topCounts();
+        App.watchLeave(); // 퇴실 중으로 10분이 지난 학생은 잔디로 알린다 (열린 화면 중 한 곳만 보낸다)
         if (syncDuty()) return;
-        if (selfWrite) return;
+        if (selfWrite || modal.open) return; // 안내 창이 열려 있으면 화면을 바꾸지 않는다
         if (state.step === 'off') draw();
         else if (state.step === 'pick') {
           const still = state.bedId && Store.board('kiosk').find((b) => b.id === state.bedId && !b.session);
           if (state.bedId && !still) { state = Object.assign({}, state, { bedId: null }); App.toast('고른 침대를 방금 다른 학생이 골랐어요. 다시 골라 주세요.', 'error'); }
           draw();
-        } else if (state.step === 'choice' && state.student) {
-          const fresh = Store.lookupStudent(state.student.no, 'kiosk');
-          if (!fresh.active) go({ step: 'scan' }); else { state = Object.assign({}, state, { student: fresh }); draw(); }
+        } else if ((state.step === 'choice' || state.step === 'confirmLeave') && state.student) {
+          // 다른 화면에서 퇴실 처리·퇴실 요청이 되었으면 처음 화면으로
+          const fresh = Store.lookupStudent(state.student.no, place);
+          if (!fresh.active || App.isLeaving(fresh.active)) go({ step: 'scan' }); else { state = Object.assign({}, state, { student: fresh }); draw(); }
         }
       },
       tick() {
         if (syncDuty()) { topCounts(); return; }
-        if (state.step === 'pick' || state.step === 'choice' || state.step === 'off') this.refresh(); else topCounts();
+        if (state.step === 'pick' || state.step === 'choice' || state.step === 'off') this.refresh(); else { topCounts(); App.watchLeave(); }
       },
       destroy() {
         clearTimeout(idleTimer); clearTimeout(stepTimer); clearInterval(lockTimer);
+        closeModal();
         document.removeEventListener('keydown', onKey);
         document.removeEventListener('pointerdown', onPointer);
         document.removeEventListener('fullscreenchange', paintFs);

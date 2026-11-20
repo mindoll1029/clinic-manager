@@ -1,0 +1,4 @@
+# Netlify 설정: 사이트 파일은 저장소 그대로 올리고(빌드 없음),
+# netlify/functions 폴더의 서버 함수(잔디 알림 보내기)를 함께 올린다.
+[functions]
+  directory = "netlify/functions"

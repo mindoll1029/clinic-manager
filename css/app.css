@@ -156,6 +156,9 @@ a { color: inherit; }
 .free .split .dot, .k-free .dot { color: var(--frame-line); }
 .over-count { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; padding: 2px 10px; border-radius: 999px; background: var(--over); color: var(--over-ink); font-size: var(--fs-sm); font-weight: 700; align-self: center; }
 .over-count .ico { width: 1em; height: 1em; }
+/* 퇴실 중인 학생 수 (어두운 위쪽 바 위의 밝은 알약) */
+.leave-count { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; padding: 2px 10px; border-radius: 999px; background: var(--frame-ink); color: var(--frame); font-size: var(--fs-sm); font-weight: 700; align-self: center; }
+.leave-count .ico { width: 1em; height: 1em; }
 .live { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--frame-ink-2); white-space: nowrap; }
 .live i { width: 10px; height: 10px; border-radius: 50%; background: var(--live); }
 .live[data-state="off"] i { background: var(--over); }
@@ -277,6 +280,17 @@ a { color: inherit; }
 .slot.is-over .btn-ghost:hover:not(:disabled) { background: var(--over-press); }
 .slot.is-over .chip-ext { background: var(--over-deep); color: var(--over-ink); }
 
+/* 퇴실 중: 어두운 이름표 + 노란 "퇴실 중" 표시. 큰 숫자는 퇴실을 요청한 뒤 지난 시간.
+   확인이 늦으면(10분) 빨간 테두리와 "퇴실 확인 안 됨" */
+.chip-leave { background: var(--magnet); color: var(--magnet-ink); }
+.chip-leave .ico { width: 1em; height: 1em; }
+.slot.is-leaving .tag { background: var(--frame); color: var(--frame-ink); box-shadow: 0 1px 0 var(--frame-deep), 0 8px 16px -10px var(--shadow-float); }
+.slot.is-leaving .tag-bed, .slot.is-leaving .tag-meta, .slot.is-leaving .tag-left, .slot.is-leaving .tag-no { color: var(--frame-ink-2); }
+.slot.is-leaving .tag-meta b { color: var(--frame-ink); }
+.slot.is-leaving .btn-primary { background: var(--magnet); color: var(--magnet-ink); }
+.slot.is-leaving .btn-primary:hover:not(:disabled) { background: var(--magnet-hover); }
+.slot.is-leaving.is-late .tag { outline: 2px solid var(--over); outline-offset: 4px; }
+
 /* 2층 침대: 한 프레임 안에 위층·아래층 */
 .bunk { position: relative; display: grid; grid-template-rows: min-content auto auto; align-content: stretch; gap: 8px; min-width: 0; min-height: 0; padding: 10px 8px 8px; border: var(--line) solid var(--rule-strong); border-radius: 16px; }
 .bunk-label { display: inline-flex; align-items: center; gap: 6px; padding: 0 6px; font-size: var(--fs); font-weight: 700; color: var(--ink-2); }
@@ -354,6 +368,8 @@ a { color: inherit; }
 .field-stack .btn { align-self: flex-start; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px 20px; }
 .form-grid .row-actions { grid-column: 1 / -1; margin-top: 0; }
+.field-full { grid-column: 1 / -1; }
+.field-help { grid-column: 1 / -1; margin-top: -8px; color: var(--ink-2); font-size: var(--fs-sm); }
 
 /* 근무 일정: 요일마다 한 줄 [요일 체크] [출근] ~ [퇴근], 날짜별 변경 목록과 추가 폼 */
 .duty-week { max-width: 640px; }
@@ -410,6 +426,9 @@ a { color: inherit; }
 .status-active { background: var(--magnet); border-color: var(--magnet-edge); color: var(--magnet-ink); }
 .status-cancelled { color: var(--ink-3); border-style: dashed; }
 .status.is-auto { border-color: var(--over); color: var(--over); }
+.status-leaving { align-items: center; gap: 4px; background: var(--frame); border-color: var(--frame); color: var(--frame-ink); }
+.status-leaving .ico { width: 1em; height: 1em; }
+.status-leaving.is-late { outline: 2px solid var(--over); outline-offset: 1px; }
 .empty-state { display: grid; place-items: center; gap: 10px; padding: 56px 20px; color: var(--ink-2); text-align: center; }
 .empty-state .ico { width: 40px; height: 40px; color: var(--rule-strong); }
 
@@ -520,7 +539,7 @@ a { color: inherit; }
 .login-demo .panel-note { margin-top: 10px; }
 
 /* ── 학생용 태블릿 ────────────────────────────────────────── */
-body[data-screen="kiosk"] { overflow: hidden; }
+body[data-screen="kiosk"], body[data-screen="office"] { overflow: hidden; }
 .kiosk { height: 100dvh; display: grid; grid-template-rows: auto 1fr; padding: 0 16px 16px; user-select: none; -webkit-user-select: none; }
 .k-top { display: flex; align-items: center; gap: 20px; min-height: 76px; color: var(--frame-ink); }
 .k-brand { display: inline-flex; align-items: center; gap: 12px; padding: 0; border: 0; background: none; color: inherit; font-size: var(--fs-lg); font-weight: 800; -webkit-touch-callout: none; }
@@ -575,6 +594,8 @@ body[data-screen="kiosk"] { overflow: hidden; }
 .k-off-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .k-off-text h1 { font-size: clamp(30px, 3.2vw, 42px); }
 .k-off-text .k-sub { max-width: none; }
+/* 근무 시간 밖에도 퇴실 요청은 된다: 안내 띠 오른쪽 [학번 입력] */
+.k-off-type { flex: none; margin-left: auto; }
 .k-off .k-bed.is-free:hover { background: var(--paper); }
 .k-pick { justify-content: flex-start; align-items: stretch; text-align: left; gap: 18px; min-height: 0; }
 .k-pick-head h1 { font-size: clamp(28px, 3vw, 38px); }
@@ -607,6 +628,10 @@ body[data-screen="kiosk"] { overflow: hidden; }
 .k-bed.is-busy { border-style: solid; border-color: var(--rule); background: var(--busy); color: var(--ink-3); cursor: default; }
 .k-bed.is-busy .k-bed-no { color: var(--ink-3); }
 .k-bed.is-over .k-bed-state { color: var(--over); }
+/* 퇴실 중: 어두운 칸 (현황판 이름표와 같은 색) */
+.k-bed.is-leaving { border-color: var(--frame); background: var(--frame); }
+.k-bed.is-leaving .k-bed-no, .k-bed.is-leaving .k-bed-state { color: var(--frame-ink); }
+.k-bed.is-leaving .k-bed-no small { color: var(--frame-ink-2); }
 .k-bed:disabled { cursor: default; }
 .k-board.has-pick .k-bed.is-free:not(.is-picked) { opacity: 0.55; transform: scale(0.97); }
 .k-bed.is-picked { background: var(--magnet); border: var(--line) solid var(--magnet-edge); transform: scale(1.04); box-shadow: 0 2px 0 var(--magnet-edge), 0 18px 26px -14px var(--shadow-magnet); z-index: 1; }
@@ -658,6 +683,16 @@ body[data-screen="kiosk"] { overflow: hidden; }
 .k-countdown { width: 280px; height: 6px; border-radius: 3px; background: var(--rule); overflow: hidden; }
 .k-countdown span { display: block; height: 100%; background: var(--frame); transform-origin: left; animation: countdown 5s linear forwards; }
 @keyframes countdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* 퇴실 요청 안내 창: [확인했어요]를 눌러야 닫힌다 */
+.k-modal { width: min(640px, calc(100vw - 48px)); padding: 44px 40px 40px; border: 0; border-radius: 28px; background: var(--paper); color: var(--ink); text-align: center; box-shadow: 0 30px 60px -20px var(--shadow-float); }
+.k-modal[open] { display: flex; flex-direction: column; align-items: center; gap: 20px; animation: sheet-in 0.22s var(--ease); }
+.k-modal::backdrop { background: var(--shade); }
+.k-modal h2 { font-size: clamp(32px, 3.6vw, 44px); font-weight: 800; line-height: 1.22; letter-spacing: -0.02em; }
+.k-modal .k-sub { max-width: none; }
+.k-modal .btn { min-width: 280px; margin-top: 8px; }
+.k-modal-mark { display: grid; place-items: center; width: 112px; height: 112px; border-radius: 28px; background: var(--frame); color: var(--magnet); }
+.k-modal-mark .ico { width: 64px; height: 64px; }
 
 /* ── 연결 끊김 ────────────────────────────────────────────── */
 body.is-offline .topbar { box-shadow: inset 0 -3px 0 var(--over); }
