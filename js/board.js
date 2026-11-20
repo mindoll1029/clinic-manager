@@ -57,19 +57,18 @@
     // 좁은 카드에서는 '학지실 태블릿이' / '18:00에 등록' 사이에서만 줄을 바꾼다 (카드 밖으로 나가지 않게)
     const regHTML = (src ? '<span class="nowrap"><b>' + esc(src) + '</b>' + esc(App.josa(src, '이', '가').slice(src.length)) + '</span> ' : '') + '<span class="nowrap">' + atHTML + '에 등록</span>';
 
-    // 연장: 보건 선생님·학생지원실 모두 언제나 (학생용 태블릿에서는 연장하지 않는다).
+    // 연장: 보건 선생님·보건 조교·학생지원실 PC에서 언제나 (연장 암호 필요). 학생용 태블릿·관리자 현황판에는 없다.
     // 퇴실: 학생지원실은 보건 선생님 퇴근 10분 전부터(근무 시간 밖에는 언제나). 그 전에는 등록 취소만.
+    const extendBtn = opts.admin ? '' : '<button class="btn btn-primary" data-act="extend" data-id="' + s.id + '">' + window.icon('plus') + '<span>연장</span></button>';
     let actions = '';
     if (opts.mode === 'nurse' || (opts.mode === 'support' && opts.manage)) {
-      actions = '<div class="tag-actions">' +
-        '<button class="btn btn-primary" data-act="extend" data-id="' + s.id + '">' + window.icon('plus') + '<span>연장</span></button>' +
+      actions = '<div class="tag-actions">' + extendBtn +
         '<span class="spacer"></span>' +
         '<button class="btn btn-ghost" data-act="end" data-id="' + s.id + '">퇴실</button>' +
         '<button class="icon-btn btn-ghost" data-act="more" data-id="' + s.id + '" aria-label="' + esc(b.label) + ' 침대 더보기">' + window.icon('more') + '</button>' +
         '</div>';
     } else if (opts.mode === 'support') {
-      actions = '<div class="tag-actions">' +
-        '<button class="btn btn-primary" data-act="extend" data-id="' + s.id + '">' + window.icon('plus') + '<span>연장</span></button>' +
+      actions = '<div class="tag-actions">' + extendBtn +
         '<span class="spacer"></span>' +
         '<button class="btn btn-ghost btn-sm" data-act="cancel" data-id="' + s.id + '">' + window.icon('undo') + '<span>등록 취소</span></button></div>';
     }
@@ -407,6 +406,8 @@
           const st = Store.settings();
           const s = b.session;
           const endAt = App.dueAt(s);
+          const hasPw = Store.hasExtendPassword();
+          // 연장할 때마다 연장 암호를 넣는다. 암호가 아직 없으면 연장할 수 없다 (보건 선생님 설정에서 정한다).
           const go = await App.dialog({
             title: '연장 확인',
             className: 'sheet-confirm',
@@ -415,15 +416,34 @@
                 '<div><dt>지금까지</dt><dd>' + App.elapsedText(s.startedAt, Store.now()) + ' 사용</dd></div>' +
                 '<div><dt>끝나는 시각</dt><dd>' + App.hm(endAt) + ' → <b>' + App.hm(endAt + st.extendMinutes * App.MIN) + '</b></dd></div>' +
                 '<div><dt>연장 횟수</dt><dd>' + s.extensionCount + '회 → <b>' + (s.extensionCount + 1) + '회</b></dd></div>' +
-              '</dl>',
+              '</dl>' +
+              (hasPw
+                ? '<label class="field"><span>연장 암호</span><input name="pw" type="password" autocomplete="off" autofocus></label>' +
+                  '<p class="field-error" role="alert" hidden></p>'
+                : '<p class="sheet-warn">' + window.icon('lock') + '<span>연장 암호가 아직 정해지지 않았습니다. 보건 선생님 화면 → 설정 → 연장 암호에서 먼저 정해 주세요.</span></p>'),
             actions: [
               { label: '돌아가기', value: '__cancel' },
-              { label: st.extendMinutes + '분 연장', value: 'yes', kind: 'primary', icon: 'plus' },
+              { label: st.extendMinutes + '분 연장', value: 'yes', kind: 'primary', icon: 'plus', disabled: !hasPw },
             ],
+            onSubmit(dlg) {
+              const input = dlg.querySelector('input[name=pw]');
+              const err = dlg.querySelector('.field-error');
+              if (!input) return false;
+              if (!Store.checkExtendPassword(input.value)) {
+                err.hidden = false;
+                err.textContent = input.value ? '연장 암호가 맞지 않습니다.' : '연장 암호를 넣어 주세요.';
+                input.value = '';
+                input.focus();
+                App.sound.error();
+                return false;
+              }
+              return 'pw:' + input.value;
+            },
           });
-          if (go !== 'yes') return;
-          Store.staffExtend(id, actor);
-          App.toast(s.name + ' 학생 ' + st.extendMinutes + '분 연장');
+          if (!go || !go.startsWith('pw:')) return;
+          Store.staffExtend(id, actor, go.slice(3));
+          App.sound.ok();
+          App.toast(s.name + ' 학생 ' + st.extendMinutes + '분 연장' + (st.sheetUrl ? ' · 구글 시트에 기록합니다' : ''));
         } else if (btn.dataset.act === 'leave-ok') {
           const b = find();
           if (!b) return;

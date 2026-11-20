@@ -413,6 +413,7 @@
         // 근무 일정이 바뀌어 근무 시간이 끝났으면 입력 중이어도 현황 화면으로 바꾼다.
         topCounts();
         App.watchLeave(); // 퇴실 중으로 10분이 지난 학생은 잔디로 알린다 (열린 화면 중 한 곳만 보낸다)
+        App.watchSheet(); // 연장 기록을 구글 시트로 보낸다 (열린 화면 중 한 곳만 보낸다)
         if (syncDuty()) return;
         if (selfWrite) return;
         if (state.step === 'off') draw();
@@ -428,7 +429,7 @@
       },
       tick() {
         if (syncDuty()) { topCounts(); return; }
-        if (state.step === 'pick' || state.step === 'off') this.refresh(); else { topCounts(); App.watchLeave(); }
+        if (state.step === 'pick' || state.step === 'off') this.refresh(); else { topCounts(); App.watchLeave(); App.watchSheet(); }
       },
       destroy() {
         clearTimeout(idleTimer); clearTimeout(stepTimer);

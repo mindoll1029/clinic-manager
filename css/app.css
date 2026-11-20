@@ -371,6 +371,21 @@ a { color: inherit; }
 .form-grid .row-actions { grid-column: 1 / -1; margin-top: 0; }
 .field-full { grid-column: 1 / -1; }
 .field-help { grid-column: 1 / -1; margin-top: -8px; color: var(--ink-2); font-size: var(--fs-sm); }
+/* 설정: 상태 한 줄 (연장 암호·구글 시트) */
+.set-state { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-bottom: 16px; color: var(--ink-2); font-size: var(--fs-sm); }
+.set-state .ico { width: 1.1em; height: 1.1em; flex: none; }
+.set-state .is-warn { display: inline-flex; align-items: center; gap: 6px; color: var(--over); font-weight: 700; }
+#set-sheet .set-state { margin: 16px 0 0; }
+/* 설정: 구글 시트 연동 순서 */
+.steps { display: grid; gap: 14px; margin: 0 0 20px; padding: 0; list-style: none; counter-reset: step; }
+.steps li { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding-left: 44px; counter-increment: step; }
+.steps li::before { content: counter(step); position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--frame); color: var(--magnet); font-weight: 800; font-size: var(--fs-sm); }
+.steps li > span { color: var(--ink-2); font-size: var(--fs-sm); line-height: 1.5; }
+.steps li > span b { color: var(--ink); }
+.step-actions { display: flex; gap: 8px; }
+.code-box { width: 100%; }
+.code-box summary { cursor: pointer; color: var(--ink-2); font-size: var(--fs-sm); font-weight: 700; }
+.code { max-height: 280px; overflow: auto; margin-top: 8px; padding: 14px 16px; border: var(--line) solid var(--rule); border-radius: var(--radius); background: var(--board); font: 16px/1.5 ui-monospace, Consolas, monospace; white-space: pre; user-select: text; }
 
 /* 근무 일정: 요일마다 한 줄 [요일 체크] [출근] ~ [퇴근], 날짜별 변경 목록과 추가 폼 */
 .duty-week { max-width: 640px; }

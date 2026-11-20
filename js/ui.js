@@ -328,6 +328,7 @@
   const leaveBusy = new Set();
   async function watchLeave() {
     const Store = window.Store;
+    if (location.protocol === 'file:') return; // 파일로 연 화면은 보낼 수 없다 (다시 보낼 기회를 쓰지 않는다)
     let due = [];
     try { due = Store.leaveAlertDue(Date.now()); } catch (e) { return; }
     for (const s of due) {
@@ -341,6 +342,42 @@
         console.error(e);
       } finally {
         leaveBusy.delete(s.id);
+      }
+    }
+  }
+
+  // ── 구글 시트 (연장 기록) ──────────────────────────────────
+  // 시트에 붙인 Apps Script 웹 앱으로 보낸다. 웹페이지에서는 결과를 읽을 수 없어서
+  // Netlify 서버 함수(netlify/functions/sheet.mjs)를 거친다 (Netlify 주소로 연 화면에서만 된다).
+  const SHEET_FN = '/.netlify/functions/sheet';
+  async function sendSheet(url, data) {
+    if (location.protocol === 'file:') return { ok: false, reason: 'file' };
+    try {
+      const r = await fetch(SHEET_FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, data }) });
+      let j = null;
+      try { j = await r.json(); } catch (e) { /* 함수가 없는 곳(404 페이지) */ }
+      return { ok: r.ok && !!(j && j.ok), sheet: j && j.sheet, reason: j ? j.error || null : 'no-function' };
+    } catch (e) { return { ok: false, reason: 'network' }; }
+  }
+
+  // 쌓인 연장 기록을 보낸다. 열린 화면마다 부르지만, 서버에 먼저 표시한 화면 하나만 보낸다.
+  const sheetBusy = new Set();
+  async function watchSheet() {
+    const Store = window.Store;
+    if (location.protocol === 'file:') return;
+    let due = [];
+    try { due = Store.sheetDue(Date.now()); } catch (e) { return; }
+    for (const q of due) {
+      if (sheetBusy.has(q.id)) continue;
+      sheetBusy.add(q.id);
+      try {
+        if (!(await Store.claimSheet(q.id))) continue;
+        const r = await App.sendSheet(Store.settings().sheetUrl, { type: 'extend', row: q.row });
+        if (r.ok) await Store.sheetSent(q.id); else await Store.sheetFailed(q.id);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        sheetBusy.delete(q.id);
       }
     }
   }
@@ -386,7 +423,7 @@
   Object.assign(App, {
     esc, $, $$, MIN,
     elapsedParts, elapsedText, elapsedHTML, durationText, hm, dueAt, isOver, overLabel, classOf,
-    isLeaving, isLeaveLate, LEAVE_FROM, sendJandi, leaveMessage, watchLeave,
+    isLeaving, isLeaveLate, LEAVE_FROM, sendJandi, leaveMessage, watchLeave, sendSheet, watchSheet,
     WEEKDAY,
     SOURCE, ZONE, ROLE, TIER, bedName, groupBeds, josa,
     toast, dialog, confirmDialog, sound, toCSV, parseCSV, download,

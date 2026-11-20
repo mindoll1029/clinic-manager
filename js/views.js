@@ -66,6 +66,60 @@
     return { refresh: draw };
   }
 
+  // ── 구글 시트 연동: 시트의 Apps Script에 붙여 넣을 코드 ─────────────
+  // 처음 연동(연동 테스트)하면 '연장 기록' 탭과 제목 줄을 만든다. 같은 기록 번호는 두 번 쓰지 않는다.
+  const APPS_SCRIPT = `// 보건실 침대 현황 → 연장 기록 (구글 시트 Apps Script)
+// 1) 이 시트의 [확장 프로그램 → Apps Script]에 붙여 넣고 저장합니다.
+// 2) [배포 → 새 배포 → 웹 앱], 실행: 나, 액세스: 모든 사용자 로 배포합니다.
+// 처음 연동하면 '연장 기록' 탭과 제목 줄을 자동으로 만듭니다.
+const SHEET_NAME = '연장 기록';
+const HEADERS = ['기록 시각', '날짜', '연장 시각', '침대', '학번', '이름', '반', '그룹', '연장한 곳', '연장 횟수', '이전 끝나는 시각', '새 끝나는 시각', '연장 시간(분)', '기록 번호'];
+
+function doPost(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const sheet = getSheet_();
+    const name = SpreadsheetApp.getActiveSpreadsheet().getName();
+    if (data.type === 'test') return json_({ ok: true, sheet: name });
+    const r = data.row || {};
+    if (r.id && hasId_(sheet, r.id)) return json_({ ok: true, sheet: name, duplicate: true });
+    sheet.appendRow([new Date(), r.date, r.time, r.bed, r.studentNo, r.name, r.classNo, r.group, r.by, r.count, r.prevDue, r.newDue, r.minutes, r.id]);
+    return json_({ ok: true, sheet: name });
+  } catch (err) {
+    return json_({ ok: false, error: String(err) });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(SHEET_NAME);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_NAME, 0);
+    sh.getRange('B:C').setNumberFormat('@');
+    sh.getRange('E:E').setNumberFormat('@');
+    sh.getRange('K:L').setNumberFormat('@');
+    sh.appendRow(HEADERS);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold').setBackground('#FFD84D');
+  }
+  return sh;
+}
+
+function hasId_(sh, id) {
+  const last = sh.getLastRow();
+  if (last < 2) return false;
+  return sh.getRange(2, HEADERS.length, last - 1, 1).getValues().some(function (v) { return v[0] === id; });
+}
+
+function json_(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+`;
+
   // ── 설정 ───────────────────────────────────────────────────
   // 근무 일정: 요일 순서는 월요일부터. 날짜별 변경 폼은 "휴무"가 기본.
   const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -154,6 +208,19 @@
         '</li>').join('');
     }
 
+    function extPwState() {
+      return Store.hasExtendPassword()
+        ? window.icon('check') + '<span>연장 암호가 정해져 있습니다. 바꾸려면 새 암호를 넣고 저장합니다.</span>'
+        : '<span class="is-warn">' + window.icon('lock') + '<span>연장 암호가 아직 없습니다. 정하기 전에는 아무도 연장할 수 없습니다.</span></span>';
+    }
+    function sheetState() {
+      const st = Store.settings();
+      if (!st.sheetUrl) return '<span>아직 연동하지 않았습니다.</span>';
+      const q = Store.sheetStatus();
+      return window.icon('check') + '<span>연동되어 있습니다.' + (q.pending ? ' 보내는 중 ' + q.pending + '건.' : '') + '</span>' +
+        (q.failed ? ' <span class="is-warn">보내지 못한 연장 기록 ' + q.failed + '건</span> <button type="button" class="btn btn-ghost btn-sm" data-sheet-retry>' + window.icon('refresh') + '<span>다시 보내기</span></button>' : '');
+    }
+
     function draw() {
       const st = Store.settings();
       const opt = (vals, cur, unit) => vals.map((v) => '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + v + unit + '</option>').join('');
@@ -175,6 +242,31 @@
             '<div class="row-actions"><button type="button" class="btn btn-ghost" data-preview-alert>' + window.icon('volume') + '<span>알림음 테스트</span></button>' +
               '<span class="spacer"></span><button class="btn btn-primary">저장</button></div>' +
           '</form></section>' +
+        '<section class="panel" id="set-extpw"><header class="panel-head"><h2>연장 암호</h2><p class="panel-note">보건 선생님·보건 조교·학지실 PC에서 연장할 때마다 넣는 암호입니다.</p></header>' +
+          '<p class="set-state" data-extpw-state>' + extPwState() + '</p>' +
+          '<form class="form-grid" data-form="extpw">' +
+            '<label class="field"><span>새 연장 암호 (4자 이상)</span><input name="pw1" type="password" autocomplete="new-password" required></label>' +
+            '<label class="field"><span>한 번 더</span><input name="pw2" type="password" autocomplete="new-password" required></label>' +
+            '<div class="row-actions"><span class="spacer"></span><button class="btn btn-primary">연장 암호 저장</button></div>' +
+          '</form></section>' +
+        '<section class="panel" id="set-sheet"><header class="panel-head"><h2>구글 시트 연동 (연장 기록)</h2><p class="panel-note">연장할 때마다 날짜·시각·침대·학생·연장한 곳이 구글 시트에 한 줄씩 남습니다. 처음 한 번 아래 순서대로 연동합니다.</p></header>' +
+          '<ol class="steps">' +
+            '<li><b>새 구글 시트 만들기</b><span>학교 구글 계정으로 로그인한 상태에서 누릅니다. 시트 이름은 자유롭게 정하세요.</span>' +
+              '<a class="btn btn-ghost btn-sm" href="https://sheets.new" target="_blank" rel="noopener">' + window.icon('plus') + '<span>새 구글 시트 만들기</span></a></li>' +
+            '<li><b>코드 붙여 넣기</b><span>시트 메뉴 <b>확장 프로그램 → Apps Script</b>를 열고, 원래 있던 내용을 모두 지운 뒤 코드를 붙여 넣고 저장합니다.</span>' +
+              '<span class="step-actions"><button type="button" class="btn btn-ghost btn-sm" data-copy-script>' + window.icon('list') + '<span>코드 복사</span></button></span>' +
+              '<details class="code-box"><summary>코드 보기</summary><pre class="code" data-script>' + esc(APPS_SCRIPT) + '</pre></details></li>' +
+            '<li><b>웹 앱으로 배포</b><span>오른쪽 위 <b>배포 → 새 배포</b> → 유형 <b>웹 앱</b> → 실행: <b>나</b>(Me), 액세스: <b>모든 사용자</b>(Anyone) → <b>배포</b> → 권한 허용 → <b>웹 앱 URL</b>을 복사합니다.</span></li>' +
+            '<li><b>연동 테스트 후 저장</b><span>복사한 주소를 아래 칸에 붙여 넣고 <b>연동 테스트</b>를 누릅니다. 시트에 \'연장 기록\' 탭과 제목 줄이 생기면 <b>저장</b>을 누릅니다.</span></li>' +
+          '</ol>' +
+          '<form class="form-grid" data-form="sheet">' +
+            '<label class="field field-full"><span>웹 앱 주소</span><input name="sheetUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(st.sheetUrl || '') + '"></label>' +
+            '<p class="field-help">비워 두고 저장하면 시트로 보내지 않습니다. 시트로는 Netlify 주소(…netlify.app)로 연 화면에서만 보냅니다.</p>' +
+            '<div class="row-actions"><button type="button" class="btn btn-ghost" data-sheet-test>' + window.icon('check') + '<span>연동 테스트</span></button>' +
+              '<span class="spacer"></span><button class="btn btn-primary">저장</button></div>' +
+          '</form>' +
+          '<p class="set-state" data-sheet-state>' + sheetState() + '</p>' +
+        '</section>' +
         '<section class="panel" id="set-jandi"><header class="panel-head"><h2>잔디 알림</h2><p class="panel-note">학생이 퇴실을 요청하고 ' + Store.LEAVE_ALERT_MINUTES + '분이 지나도 학생지원실에서 퇴실 확인이 되지 않으면 잔디 대화방으로 알립니다.</p></header>' +
           '<form class="form-grid" data-form="jandi">' +
             '<label class="field field-full"><span>잔디 웹훅 주소</span><input name="jandiUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://wh.jandi.com/connect-api/webhook/…" value="' + esc(st.jandiUrl || '') + '"></label>' +
@@ -233,6 +325,37 @@
     });
     container.addEventListener('click', async (e) => {
       if (e.target.closest('[data-preview-alert]')) { App.previewOverAlert('사용 시간이 지나면 이렇게 알립니다. 실제 알림 때 알림음은 위 체크 상자가 켜져 있을 때만 울립니다.'); return; } // 윈도우 알림 허용도 여기서 물어본다
+      if (e.target.closest('[data-copy-script]')) {
+        const pre = container.querySelector('[data-script]');
+        try { await navigator.clipboard.writeText(APPS_SCRIPT); App.toast('코드를 복사했습니다. Apps Script에 붙여 넣으세요'); }
+        catch (err) {
+          // 클립보드를 쓸 수 없는 화면: 코드를 펼치고 선택해 둔다 (Ctrl+C로 복사)
+          pre.closest('details').open = true;
+          const range = document.createRange(); range.selectNodeContents(pre);
+          const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+          App.toast('코드를 선택해 두었습니다. Ctrl + C로 복사하세요');
+        }
+        return;
+      }
+      const stt = e.target.closest('[data-sheet-test]');
+      if (stt) {
+        const url = stt.form.sheetUrl.value.trim();
+        if (!Store.isSheetUrl(url)) { App.toast('Apps Script 웹 앱 주소가 아닙니다. https://script.google.com/macros/s/…/exec 형식의 주소를 붙여 넣어 주세요.', 'error'); return; }
+        stt.disabled = true;
+        const r = await App.sendSheet(url, { type: 'test' });
+        stt.disabled = false;
+        if (r.ok) App.toast('구글 시트' + (r.sheet ? ' "' + r.sheet + '"' : '') + '에 연결했습니다. \'연장 기록\' 탭을 확인하고 저장을 누르세요');
+        else App.toast(r.reason === 'file' || r.reason === 'no-function'
+          ? '이 화면에서는 구글 시트로 보낼 수 없습니다. Netlify 주소(…netlify.app)로 연 화면에서 해 주세요.'
+          : r.reason === 'network' ? '구글 시트로 보내지 못했습니다. 인터넷 연결을 확인해 주세요.'
+          : (r.reason || '구글 시트로 보내지 못했습니다. 주소를 다시 확인해 주세요.'), 'error');
+        return;
+      }
+      if (e.target.closest('[data-sheet-retry]')) {
+        const n = Store.retrySheet();
+        App.toast(n ? '보내지 못한 연장 기록 ' + n + '건을 다시 보냅니다' : '다시 보낼 기록이 없습니다');
+        return;
+      }
       const jt = e.target.closest('[data-jandi-test]');
       if (jt) {
         // 저장하지 않은 주소도 시험할 수 있다 (입력 칸에 적힌 주소로 보낸다)
@@ -313,6 +436,16 @@
         if (f.alertSoundSupport) patch.alertSoundSupport = f.alertSoundSupport.checked;
         Store.updateSettings(patch);
         App.toast('사용 시간과 연장 설정을 저장했습니다');
+      } else if (f.dataset.form === 'extpw') {
+        if (f.pw1.value !== f.pw2.value) { App.toast('두 번 입력한 연장 암호가 다릅니다.', 'error'); return; }
+        try { Store.setExtendPassword(f.pw1.value); f.reset(); App.toast('연장 암호를 저장했습니다'); }
+        catch (err) { App.toast(err.message, 'error'); }
+      } else if (f.dataset.form === 'sheet') {
+        try {
+          const u = Store.setSheetUrl(f.sheetUrl.value);
+          f.sheetUrl.value = u;
+          App.toast(u ? '구글 시트 연동을 저장했습니다. 이제 연장 기록이 시트에 남습니다' : '구글 시트 연동을 껐습니다');
+        } catch (err) { App.toast(err.message, 'error'); }
       } else if (f.dataset.form === 'jandi') {
         try {
           const u = Store.setJandiUrl(f.jandiUrl.value);
@@ -336,7 +469,13 @@
       }
     });
     draw();
-    return { refresh() { if (!dirtyBeds) { beds = Store.beds().map((x) => Object.assign({}, x)); } } };
+    return {
+      refresh() {
+        if (!dirtyBeds) { beds = Store.beds().map((x) => Object.assign({}, x)); }
+        const a = container.querySelector('[data-extpw-state]'); if (a) a.innerHTML = extPwState();
+        const b = container.querySelector('[data-sheet-state]'); if (b) b.innerHTML = sheetState();
+      },
+    };
   }
 
   // ── 학생 명단 ──────────────────────────────────────────────

@@ -139,6 +139,7 @@
       const board = Store.board('nurse'), now = Store.now();
       watchOver(board, now);
       App.watchLeave(); // 퇴실 중으로 10분이 지난 학생은 잔디로 알린다
+      App.watchSheet(); // 연장 기록을 구글 시트로 보낸다
       const sum = App.boardSummary(board, now);
       freeEl.innerHTML = '빈 침대 <b>' + sum.free + '</b><span class="of">/ ' + sum.total + '</span>' +
         '<span class="split">남 ' + sum.freeM + ' <span class="dot">·</span> 여 ' + sum.freeF + '</span>' +

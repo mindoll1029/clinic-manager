@@ -35,7 +35,9 @@
 
   // 사용 시간: 등록한 뒤 다음 정각(한국 표준시)까지 고정. 연장하면 끝나는 시각에 연장 시간을 더한다.
   const DEFAULT_SETTINGS = {
-    extendMinutes: 60,        // 연장 1회 시간 (연장은 보건 선생님·학생지원실 PC에서만)
+    extendMinutes: 60,        // 연장 1회 시간 (연장은 보건 선생님·보건 조교·학생지원실 PC에서만)
+    extendPasswordHash: null, // 연장 암호 (해시만 저장). 정하기 전에는 연장할 수 없다
+    sheetUrl: '',             // 연장 기록을 남길 구글 시트의 Apps Script 웹 앱 주소
     alertSound: true,         // 초과 알림음 (보건 선생님 화면)
     alertSoundSupport: true,  // 초과 알림음 (학생지원실 화면)
     rosterSheetUrl: '',       // 학생 명단을 불러오는 구글 스프레드시트 링크
@@ -50,6 +52,16 @@
   const LEAVE_ALERT_MINUTES = 10;
   const LEAVE_ALERT_TRIES = 3;
   const JANDI_URL = /^https:\/\/wh\.jandi\.com\/connect-api\/webhook\/\d+\/[0-9A-Za-z]+$/;
+
+  // 연장 기록 → 구글 시트: 연장할 때마다 보낼 줄을 sheetQueue에 쌓고, 열려 있는 화면 중 한 곳이 보낸다.
+  // 보내면 줄을 지운다. 보내지 못하면 다시 보내고, SHEET_TRIES번 실패하면 "보내지 못함"으로 남겨 설정에서 다시 보낸다.
+  // 보내는 중인 화면이 꺼져도 SHEET_CLAIM_MS가 지나면 다른 화면이 이어서 보낸다. (같은 줄이 두 번 가도 시트에서 기록 번호로 거른다)
+  const SHEET_URL = /^https:\/\/script\.google\.com\/(?:a\/macros\/[^/\s]+|macros)\/s\/[A-Za-z0-9_-]+\/exec$/;
+  const SHEET_TRIES = 5;
+  const SHEET_CLAIM_MS = 2 * 60 * 1000;
+  const SHEET_QUEUE_CAP = 300;
+  // 연장한 곳 (구글 시트 "연장한 곳" 칸)
+  const EXTEND_BY = { nurse: '보건 선생님', assistant: '보건 조교', support: '학지실 PC', admin: '관리자' };
 
   // source: 기록의 "등록 위치"와 현황판 "누가 등록"에 남는 이름. 없으면 역할(role)을 쓴다.
   // 보건 조교는 학생지원실 화면(role: support)을 쓰고, 기록에는 "보건 조교"로 남는다.
@@ -154,6 +166,17 @@
   function hhmm(ts) {
     const d = new Date(ts);
     return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  // 연장 암호 해시 (시제품용. 실제 운영에서는 서버에서만 확인한다)
+  function hashCode(text) {
+    let h = 0x811c9dc5;
+    const s = 'clinic-extend:' + String(text);
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h.toString(16).padStart(8, '0');
   }
 
   // ── 근무 일정 ──────────────────────────────────────────────
@@ -669,7 +692,7 @@
     },
 
     // 설정
-    settings() { const s = Object.assign({}, read().settings); delete s.extensionCodeHash; delete s.maxCodeTries; delete s.lockMinutes; return s; },
+    settings() { const s = Object.assign({}, read().settings); delete s.extensionCodeHash; delete s.maxCodeTries; delete s.lockMinutes; delete s.extendPasswordHash; return s; },
 
     updateSettings(patch) {
       mutate((d) => {
@@ -813,7 +836,7 @@
         const s = d.sessions.find((x) => x.id === sessionId && x.status === 'active');
         if (!s || !s.leaveAt || s.leaveAlertAt) fail('TAKEN', '이미 처리했습니다.');
         if ((s.leaveAlertTries || 0) >= LEAVE_ALERT_TRIES) fail('GAVE_UP', '여러 번 보내지 못했습니다.');
-        if (Date.now() - s.leaveAt < LEAVE_ALERT_MINUTES * MIN) fail('EARLY', '아직 시간이 되지 않았습니다.');
+        if (Date.now() - s.leaveAt < LEAVE_ALERT_MINUTES * MIN || s.leaveAlertNext > Date.now()) fail('EARLY', '아직 시간이 되지 않았습니다.');
         s.leaveAlertAt = Date.now();
         s.leaveAlertTries = (s.leaveAlertTries || 0) + 1;
       });
@@ -824,6 +847,7 @@
         const s = d.sessions.find((x) => x.id === sessionId);
         if (!s || !s.leaveAlertAt) fail('NONE', '표시가 없습니다.');
         s.leaveAlertAt = null;
+        s.leaveAlertNext = Date.now() + MIN; // 실패하면 1분 뒤에 다시 보낸다 (바로 다시 보내면 짧은 끊김에 기회를 다 써 버린다)
       });
     },
 
@@ -833,7 +857,7 @@
       if (!data.settings.jandiUrl) return [];
       const t = now || Date.now();
       return data.sessions
-        .filter((s) => s.status === 'active' && s.leaveAt && !s.leaveAlertAt && (s.leaveAlertTries || 0) < LEAVE_ALERT_TRIES && t - s.leaveAt >= LEAVE_ALERT_MINUTES * MIN)
+        .filter((s) => s.status === 'active' && s.leaveAt && !s.leaveAlertAt && (s.leaveAlertTries || 0) < LEAVE_ALERT_TRIES && t - s.leaveAt >= LEAVE_ALERT_MINUTES * MIN && !(s.leaveAlertNext > t))
         .map((s) => Object.assign(sessionView(data, s, 'nurse'), { studentNo: s.studentNo }));
     },
 
@@ -849,15 +873,108 @@
     // nurse_extend / nurse_end / nurse_move / nurse_cancel
     // 연장은 보건 선생님과 학생지원실(보건 조교 포함) PC에서 언제나 된다 (학생용 태블릿에서는 연장하지 않는다).
     // 학생지원실의 퇴실 처리는 근무 시간 밖이거나 퇴근 10분 전부터만 된다. 보건 조교는 언제나 된다.
-    staffExtend(sessionId, actor) {
+    // 연장할 때마다 연장 암호가 필요하다. 구글 시트가 연동되어 있으면 보낼 줄을 쌓는다.
+    staffExtend(sessionId, actor, password) {
       return mutate((d) => {
+        if (!d.settings.extendPasswordHash) fail('NO_PASSWORD', '연장 암호가 아직 정해지지 않았습니다. 보건 선생님 화면 → 설정 → 연장 암호에서 먼저 정해 주세요.');
+        if (hashCode(String(password || '')) !== d.settings.extendPasswordHash) fail('BAD_PASSWORD', '연장 암호가 맞지 않습니다.');
         const s = d.sessions.find((x) => x.id === sessionId && x.status === 'active');
         if (!s) fail('NOT_ACTIVE', '이미 끝난 사용입니다.');
         if (s.leaveAt) fail('LEAVING', '퇴실을 요청한 학생입니다.');
-        s.dueAt = dueOf(s) + d.settings.extendMinutes * MIN;
+        const prev = dueOf(s);
+        const now = Date.now();
+        s.dueAt = prev + d.settings.extendMinutes * MIN;
         s.extensionCount += 1;
         logEvent(d, s.id, 'extend', actor);
+        if (d.settings.sheetUrl) {
+          const st = d.students.find((x) => x.no === s.studentNo) || {};
+          const bed = d.beds.find((b) => b.id === s.bedId);
+          d.sheetQueue = d.sheetQueue || [];
+          d.sheetQueue.push({
+            id: uid('x'), tries: 0, claimAt: 0, failed: false,
+            row: {
+              id: s.id + '#' + s.extensionCount, date: dayKey(now), time: hhmm(now),
+              bed: bed ? bed.label : '', studentNo: s.studentNo, name: st.name || s.tempName || '',
+              classNo: st.classNo || '', group: st.group || '', by: EXTEND_BY[actor] || actor,
+              count: s.extensionCount, prevDue: hhmm(prev), newDue: hhmm(s.dueAt), minutes: d.settings.extendMinutes,
+            },
+          });
+          if (d.sheetQueue.length > SHEET_QUEUE_CAP) d.sheetQueue = d.sheetQueue.slice(-SHEET_QUEUE_CAP);
+        }
+        return sessionView(d, s, 'nurse');
       });
+    },
+
+    // 연장 암호
+    hasExtendPassword() { return !!read().settings.extendPasswordHash; },
+
+    checkExtendPassword(password) {
+      const h = read().settings.extendPasswordHash;
+      return !!h && hashCode(String(password || '')) === h;
+    },
+
+    setExtendPassword(password) {
+      const p = String(password || '');
+      if (p.length < 4) fail('WEAK', '연장 암호는 4자 이상으로 정해 주세요.');
+      mutate((d) => { d.settings.extendPasswordHash = hashCode(p); });
+    },
+
+    // 구글 시트 (연장 기록)
+    isSheetUrl(url) { return SHEET_URL.test(String(url || '').trim()); },
+
+    setSheetUrl(url) {
+      const u = String(url || '').trim();
+      if (u && !SHEET_URL.test(u)) fail('BAD_URL', 'Apps Script 웹 앱 주소가 아닙니다. https://script.google.com/macros/s/…/exec 형식의 주소를 붙여 넣어 주세요.');
+      mutate((d) => { d.settings.sheetUrl = u; if (!u) d.sheetQueue = []; });
+      return u;
+    },
+
+    // 지금 보낼 연장 기록 (주소가 있고, 실패로 멈추지 않았고, 다른 화면이 보내는 중이 아닌 것)
+    sheetDue(now) {
+      const data = read();
+      if (!data.settings.sheetUrl) return [];
+      const t = now || Date.now();
+      return (data.sheetQueue || []).filter((q) => !q.failed && !(q.nextAt > t) && (!q.claimAt || t - q.claimAt > SHEET_CLAIM_MS)).map((q) => ({ id: q.id, row: Object.assign({}, q.row) }));
+    },
+
+    sheetStatus() {
+      const q = read().sheetQueue || [];
+      return { pending: q.filter((x) => !x.failed).length, failed: q.filter((x) => x.failed).length };
+    },
+
+    // 보낼 화면 정하기: 서버에 먼저 표시한 한 화면만 true
+    claimSheet(id) {
+      return mutateConfirmed((d) => {
+        const q = (d.sheetQueue || []).find((x) => x.id === id);
+        if (!q || q.failed || q.nextAt > Date.now() || (q.claimAt && Date.now() - q.claimAt <= SHEET_CLAIM_MS)) fail('TAKEN', '이미 보내는 중입니다.');
+        q.claimAt = Date.now();
+        q.tries = (q.tries || 0) + 1;
+      });
+    },
+
+    sheetSent(id) {
+      return mutateConfirmed((d) => {
+        const before = (d.sheetQueue || []).length;
+        d.sheetQueue = (d.sheetQueue || []).filter((x) => x.id !== id);
+        if (d.sheetQueue.length === before) fail('NONE', '이미 지웠습니다.');
+      });
+    },
+
+    sheetFailed(id) {
+      return mutateConfirmed((d) => {
+        const q = (d.sheetQueue || []).find((x) => x.id === id);
+        if (!q) fail('NONE', '없습니다.');
+        q.claimAt = 0;
+        q.nextAt = Date.now() + MIN; // 실패하면 1분 뒤에 다시 보낸다 (바로 다시 보내면 짧은 끊김에 기회를 다 써 버린다)
+        if ((q.tries || 0) >= SHEET_TRIES) q.failed = true;
+      });
+    },
+
+    // 보내지 못한 연장 기록을 다시 보내게 한다 (설정의 [다시 보내기])
+    retrySheet() {
+      let n = 0;
+      mutate((d) => { (d.sheetQueue || []).forEach((q) => { if (q.failed) { q.failed = false; q.tries = 0; q.claimAt = 0; q.nextAt = 0; n++; } }); });
+      return n;
     },
 
     staffEnd(sessionId, actor) {
