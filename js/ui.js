@@ -159,7 +159,9 @@
     try {
       const n = new Notification((o.preview ? '[테스트] ' : '') + c.title, {
         body: c.lines.join('\n'),
-        tag: o.tag || 'over-' + Date.now(), // 같은 알림이 여러 탭에서 겹치면 하나로
+        // 이름표(tag)가 같은 알림은 새로 뜨지 않고 기존 알림을 조용히 바꾼다.
+        // 그래서 같은 사건(같은 학생·같은 끝 시각)일 때만 같은 이름표를 쓴다 (여러 탭에서 겹칠 때 하나로)
+        tag: o.tag || 'over-' + Date.now(),
         silent: !o.sound, // 알림음이 켜져 있을 때만 윈도우 알림 소리도 낸다
       });
       n.onclick = () => { window.focus(); n.close(); };
@@ -171,7 +173,8 @@
   function alertOver(items, opts) {
     const o = opts || {};
     overAlert(items);
-    if (document.hidden || !document.hasFocus()) systemNotify(items, { sound: o.sound, tag: 'over-' + items.map((it) => it.id).join(',') });
+    // 이름표에 끝 시각을 넣는다: 연장한 뒤 다시 초과되면 새 알림으로 뜬다
+    if (document.hidden || !document.hasFocus()) systemNotify(items, { sound: o.sound, tag: 'over-' + items.map((it) => it.id + '@' + it.due).join(',') });
   }
 
   // "알림음 테스트" 버튼(위쪽 바, 설정): 예시 알림 + 알림음 한 번 + (허용했다면) 윈도우 알림
@@ -182,7 +185,8 @@
     const items = [{ label: bed.label, name: '홍길동', due: due.getTime() }];
     sound.alert();
     const st = notifyState();
-    const sent = systemNotify(items, { preview: true, sound: false, tag: 'over-test' });
+    // 테스트는 누를 때마다 새 알림으로 뜨게 이름표를 매번 다르게 한다
+    const sent = systemNotify(items, { preview: true, sound: false, tag: 'over-test-' + Date.now() });
     const sys = sent ? '윈도우 알림도 함께 보냈습니다.'
       : st === 'file' ? '파일로 연 화면이라 윈도우 알림은 뜨지 않습니다. 링크로 열면 받을 수 있습니다.'
       : st === 'denied' ? '윈도우 알림은 이 브라우저에서 차단되어 있습니다.'
