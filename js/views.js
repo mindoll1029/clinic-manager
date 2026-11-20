@@ -175,12 +175,6 @@
             '<div class="row-actions"><button type="button" class="btn btn-ghost" data-preview-alert>' + window.icon('volume') + '<span>알림음 테스트</span></button>' +
               '<span class="spacer"></span><button class="btn btn-primary">저장</button></div>' +
           '</form></section>' +
-        '<section class="panel"><header class="panel-head"><h2>관리번호</h2><p class="panel-note">학생이 태블릿에서 연장할 때 입력하는 4자리 숫자입니다.</p></header>' +
-          '<form class="form-grid" data-form="code">' +
-            '<label class="field"><span>새 관리번호</span><input name="code" type="password" inputmode="numeric" pattern="\\d{4}" maxlength="4" autocomplete="new-password" required></label>' +
-            '<label class="field"><span>한 번 더</span><input name="code2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" required></label>' +
-            '<div class="row-actions"><span class="spacer"></span><button class="btn btn-primary">관리번호 바꾸기</button></div>' +
-          '</form></section>' +
         '<section class="panel" id="set-jandi"><header class="panel-head"><h2>잔디 알림</h2><p class="panel-note">학생이 퇴실을 요청하고 ' + Store.LEAVE_ALERT_MINUTES + '분이 지나도 학생지원실에서 퇴실 확인이 되지 않으면 잔디 대화방으로 알립니다.</p></header>' +
           '<form class="form-grid" data-form="jandi">' +
             '<label class="field field-full"><span>잔디 웹훅 주소</span><input name="jandiUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://wh.jandi.com/connect-api/webhook/…" value="' + esc(st.jandiUrl || '') + '"></label>' +
@@ -325,10 +319,6 @@
           f.jandiUrl.value = u;
           App.toast(u ? '잔디 알림 주소를 저장했습니다' : '잔디 알림을 껐습니다');
         } catch (err) { App.toast(err.message, 'error'); }
-      } else if (f.dataset.form === 'code') {
-        if (f.code.value !== f.code2.value) { App.toast('두 번 입력한 관리번호가 다릅니다.', 'error'); return; }
-        try { Store.setExtensionCode(f.code.value); f.reset(); App.toast('관리번호를 바꿨습니다'); }
-        catch (err) { App.toast(err.message, 'error'); }
       } else if (f.dataset.form === 'duty-week') {
         const el = f.elements;
         const s = Store.dutySchedule();

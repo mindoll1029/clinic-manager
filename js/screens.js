@@ -21,9 +21,9 @@
           '</form>' +
           '<details class="login-demo"><summary>' + window.icon('chevron') + '시제품 계정 보기</summary>' +
             '<table class="table table-compact"><thead><tr><th>아이디</th><th>비밀번호</th><th>열리는 화면</th></tr></thead><tbody>' +
-            [['admin', 'admin1234', '관리자 (모든 화면)'], ['nurse', 'nurse1234', '보건 선생님'], ['kiosk-nurse-room', 'kiosk1234', '학생 태블릿'], ['support-office', 'support1234', '학생지원실'], ['nurse-assistant', 'assist1234', '보건 조교 (학생지원실 화면)']]
+            [['admin', 'admin1234', '관리자 (모든 화면)'], ['nurse', 'nurse1234', '보건 선생님'], ['kiosk-nurse-room', 'kiosk1234', '보건실 학생 태블릿'], ['kiosk-support-office', 'office1234', '학생지원실 학생 태블릿'], ['support-office', 'support1234', '학생지원실'], ['nurse-assistant', 'assist1234', '보건 조교 (학생지원실 화면)']]
               .map((r) => '<tr><td class="num"><button type="button" class="link" data-fill="' + r[0] + '|' + r[1] + '">' + r[0] + '</button></td><td class="num">' + r[1] + '</td><td>' + r[2] + '</td></tr>').join('') +
-            '</tbody></table><p class="panel-note">관리번호(연장용)는 2580입니다. 설정에서 바꿀 수 있습니다.</p></details>' +
+            '</tbody></table></details>' +
         '</section>' +
       '</main>';
     const form = root.querySelector('form');
@@ -88,19 +88,19 @@
     const ws = root.querySelector('#workspace');
     const freeEl = root.querySelector('.free');
     let current = null, view = null;
-    let lastActs = null; // 학생지원실: 연장·퇴실을 맡는지 (바뀌는 순간 알린다)
-    // 학생지원실 계정만 근무 시간에 따라 연장·퇴실이 열리고 닫힌다 (보건 조교는 언제나 할 수 있다)
+    let lastActs = null; // 학생지원실: 퇴실 처리를 맡는지 (바뀌는 순간 알린다)
+    // 학생지원실 계정만 근무 시간에 따라 퇴실 처리가 열리고 닫힌다 (연장과 보건 조교의 퇴실은 언제나 된다)
     const gated = cfg.role === 'support' && by !== 'assistant';
 
-    // 학생지원실 화면은 연장·퇴실을 맡기 시작하거나 끝낼 때 알림을 띄운다.
+    // 학생지원실 화면은 퇴실 처리를 맡기 시작하거나 끝낼 때 알림을 띄운다.
     function watchDuty() {
       if (!gated) return;
       const d = Store.duty();
       if (lastActs !== null && lastActs !== d.supportActs) {
         App.sound.ok();
         App.toast(d.supportActs
-          ? (d.on ? '보건 선생님 퇴근 ' + d.handoverMinutes + '분 전입니다. 이제 여기서 연장·퇴실할 수 있습니다' : '보건 선생님 근무 시간이 끝났습니다. 연장·퇴실은 여기서 합니다')
-          : '보건 선생님이 근무 중입니다. 연장·퇴실은 보건실에서 합니다');
+          ? (d.on ? '보건 선생님 퇴근 ' + d.handoverMinutes + '분 전입니다. 이제 여기서 퇴실 처리할 수 있습니다' : '보건 선생님 근무 시간이 끝났습니다. 퇴실 처리는 여기서 합니다')
+          : '보건 선생님이 근무 중입니다. 퇴실 처리는 보건실에서 합니다');
       }
       lastActs = d.supportActs;
     }
@@ -247,7 +247,7 @@
     const el = box.firstChild;
     // 사용 시간 초과 알림은 staffShell(watchOver)이 탭과 상관없이 띄운다
     App.bindBoardActions(el, mode === 'admin' ? 'nurse' : mode, by);
-    // 학생지원실: 보건 선생님 퇴근 10분 전부터(근무 시간 밖에는 언제나) 연장·퇴실 버튼을 보인다. 보건 조교는 언제나.
+    // 학생지원실: 보건 선생님 퇴근 10분 전부터(근무 시간 밖에는 언제나) 퇴실 버튼을 보인다. 보건 조교는 언제나. (연장은 언제나)
     const draw = () => App.renderBoard(el, { mode: mode === 'admin' ? 'nurse' : mode, admin: mode === 'admin',
       manage: mode === 'support' && (by === 'assistant' || Store.duty().supportActs) });
     draw();
@@ -268,7 +268,7 @@
   }
 
   // ── 학생지원실 ─────────────────────────────────────────────
-  // 보건 조교 계정도 이 화면을 쓴다. 학생지원실과 같지만 연장·퇴실은 근무 시간과 상관없이 언제나 된다.
+  // 보건 조교 계정도 이 화면을 쓴다. 학생지원실과 같지만 퇴실 처리도 근무 시간과 상관없이 언제나 된다.
   // 상단 바에는 계정 이름이 보인다.
   function support(root, ctx) {
     return staffShell(root, ctx, {
@@ -305,10 +305,10 @@
 
   function screensHub(box) {
     const SCREENS = [
-      { route: '#/nurse', icon: 'monitor', name: '보건 선생님 화면', where: '보건실 PC', does: '전체 현황, 직접 등록, 연장·퇴실·이동·취소, 기록, 설정(근무 일정 포함)' },
-      { route: '#/kiosk', icon: 'tablet', name: '보건실 학생용 태블릿', where: '보건실 입구 태블릿 + 스캐너', does: '근무 시간: 스캔 등록, 침대 고르기, 관리번호 연장 · 퇴실 요청은 언제나 · 그 밖: 현황' },
-      { route: '#/office', icon: 'tablet', name: '학생지원실 학생용 태블릿', where: '강의동 학생지원실 태블릿', does: '스캔 → 퇴실 요청 (연장 없음)' },
-      { route: '#/support', icon: 'building', name: '학생지원실 화면', where: '강의동 학생지원실 PC, 보건 조교', does: '등록, 퇴실 확인, 현황 확인, 등록 취소, 기록, 초과 알림 · 퇴근 10분 전부터 연장·퇴실' },
+      { route: '#/nurse', icon: 'monitor', name: '보건 선생님 화면', where: '보건실 PC', does: '전체 현황, 직접 등록, 연장·퇴실·이동·취소, 기록, 설정(근무 일정·잔디 알림 포함)' },
+      { route: '#/kiosk', icon: 'tablet', name: '보건실 학생용 태블릿', where: '보건실 입구 태블릿 + 스캐너', does: '근무 시간: 스캔·학번 입력 등록, 침대 고르기 · 퇴실 요청은 언제나 · 그 밖: 현황 · 연장 없음' },
+      { route: '#/office', icon: 'tablet', name: '학생지원실 학생용 태블릿', where: '강의동 학생지원실 태블릿', does: '언제나: 스캔·학번 입력 → 침대 고르기 등록, 사용 중이면 바로 퇴실 · 연장 없음' },
+      { route: '#/support', icon: 'building', name: '학생지원실 화면', where: '강의동 학생지원실 PC, 보건 조교', does: '등록, 연장, 퇴실 확인, 현황 확인, 등록 취소, 기록, 초과 알림 · 퇴근 10분 전부터 퇴실' },
     ];
     function draw() {
       const sum = App.boardSummary(Store.board('nurse'), Store.now());

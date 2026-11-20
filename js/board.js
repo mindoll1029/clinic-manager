@@ -56,7 +56,8 @@
       : '<b>' + at + '</b>';
     const regHTML = (src ? '<b>' + esc(src) + '</b>' + esc(App.josa(src, '이', '가').slice(src.length)) + ' ' : '') + atHTML + '에 등록';
 
-    // 학생지원실은 보건 선생님 퇴근 10분 전부터(근무 시간 밖에는 언제나) 보건 선생님처럼 연장·퇴실한다
+    // 연장: 보건 선생님·학생지원실 모두 언제나 (학생용 태블릿에서는 연장하지 않는다).
+    // 퇴실: 학생지원실은 보건 선생님 퇴근 10분 전부터(근무 시간 밖에는 언제나). 그 전에는 등록 취소만.
     let actions = '';
     if (opts.mode === 'nurse' || (opts.mode === 'support' && opts.manage)) {
       actions = '<div class="tag-actions">' +
@@ -66,7 +67,9 @@
         '<button class="icon-btn btn-ghost" data-act="more" data-id="' + s.id + '" aria-label="' + esc(b.label) + ' 침대 더보기">' + window.icon('more') + '</button>' +
         '</div>';
     } else if (opts.mode === 'support') {
-      actions = '<div class="tag-actions"><span class="spacer"></span>' +
+      actions = '<div class="tag-actions">' +
+        '<button class="btn btn-primary" data-act="extend" data-id="' + s.id + '">' + window.icon('plus') + '<span>연장</span></button>' +
+        '<span class="spacer"></span>' +
         '<button class="btn btn-ghost btn-sm" data-act="cancel" data-id="' + s.id + '">' + window.icon('undo') + '<span>등록 취소</span></button></div>';
     }
 

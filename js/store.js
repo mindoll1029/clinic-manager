@@ -35,10 +35,7 @@
 
   // 사용 시간: 등록한 뒤 다음 정각(한국 표준시)까지 고정. 연장하면 끝나는 시각에 연장 시간을 더한다.
   const DEFAULT_SETTINGS = {
-    extendMinutes: 60,        // 연장 1회 시간
-    extensionCodeHash: null,  // 관리번호 (해시만 저장)
-    maxCodeTries: 5,          // 연속 실패 허용 횟수
-    lockMinutes: 1,           // 잠금 시간
+    extendMinutes: 60,        // 연장 1회 시간 (연장은 보건 선생님·학생지원실 PC에서만)
     alertSound: true,         // 초과 알림음 (보건 선생님 화면)
     alertSoundSupport: true,  // 초과 알림음 (학생지원실 화면)
     rosterSheetUrl: '',       // 학생 명단을 불러오는 구글 스프레드시트 링크
@@ -128,17 +125,6 @@
     const id = prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
     if (uidLog) uidLog.push(id);
     return id;
-  }
-
-  // 시제품용 간단한 해시. 실제 운영에서는 서버 함수(bcrypt 등)에서만 확인한다.
-  function hashCode(text) {
-    let h = 0x811c9dc5;
-    const s = 'clinic:' + String(text);
-    for (let i = 0; i < s.length; i++) {
-      h ^= s.charCodeAt(i);
-      h = Math.imul(h, 0x01000193) >>> 0;
-    }
-    return h.toString(16).padStart(8, '0');
   }
 
   function dayKey(ts) {
@@ -245,13 +231,12 @@
     const students = sampleStudents();
     const data = {
       version: DATA_VERSION,
-      settings: Object.assign({}, DEFAULT_SETTINGS, { extensionCodeHash: hashCode('2580') }),
+      settings: Object.assign({}, DEFAULT_SETTINGS),
       accounts: DEFAULT_ACCOUNTS.map((a) => Object.assign({}, a)),
       beds: DEFAULT_BEDS.map((b) => Object.assign({}, b)),
       students,
       sessions: [],
       events: [],
-      lockouts: {},
     };
     // 화면 확인용 예시 사용 기록 (가상). 몇 시에 열어도 초과는 1003 한 명만 보이도록 이번 정각을 기준으로 잡는다.
     const into = Math.floor((now % HOUR) / MIN); // 이번 정각에서 지난 분
@@ -287,7 +272,6 @@
       try {
         const data = JSON.parse(raw);
         data.settings = Object.assign({}, DEFAULT_SETTINGS, data.settings);
-        data.lockouts = data.lockouts || {};
         if (migrate(data)) save(data, { silent: true });
         return data;
       } catch (e) { /* 손상된 데이터는 새로 만든다 */ }
@@ -427,7 +411,6 @@
     const data = row.data;
     data.rev = Number(row.rev) || 0;
     data.settings = Object.assign({}, DEFAULT_SETTINGS, data.settings);
-    data.lockouts = data.lockouts || {};
     return data;
   }
 
@@ -614,16 +597,17 @@
     return data.sessions.some((s) => s.status === 'active' && s.bedId === bedId);
   }
 
-  // 학생용 태블릿은 보건 선생님 근무 시간에만 등록·연장·퇴실한다
+  // 보건실 학생용 태블릿은 보건 선생님 근무 시간에만 등록한다 (퇴실 요청은 언제나)
   function kioskOpen(data) {
     if (!dutyOf(data).on) fail('OFF_DUTY', '보건 선생님 근무 시간이 아닙니다. 학생지원실에서 해 주세요.');
   }
 
-  // 학생지원실의 연장·퇴실은 퇴근 10분 전부터 (근무 시간 밖에는 언제나). 보건 조교('assistant')는 막지 않는다.
+  // 학생지원실의 퇴실 처리는 퇴근 10분 전부터 (근무 시간 밖에는 언제나). 보건 조교('assistant')는 막지 않는다.
+  // (연장과 퇴실 확인은 학생지원실도 언제나 할 수 있다)
   function supportMayAct(data, actor) {
     if (actor !== 'support') return;
     const duty = dutyOf(data);
-    if (!duty.supportActs) fail('ON_DUTY', '보건 선생님 근무 중에는 보건실에서 연장·퇴실합니다. ' + hhmm(duty.handoverAt) + '부터 여기서 할 수 있습니다.');
+    if (!duty.supportActs) fail('ON_DUTY', '보건 선생님 근무 중에는 보건실에서 퇴실 처리합니다. ' + hhmm(duty.handoverAt) + '부터 여기서 할 수 있습니다.');
   }
 
   // ── 공개 API ───────────────────────────────────────────────
@@ -685,18 +669,12 @@
     },
 
     // 설정
-    settings() { const s = Object.assign({}, read().settings); delete s.extensionCodeHash; return s; },
+    settings() { const s = Object.assign({}, read().settings); delete s.extensionCodeHash; delete s.maxCodeTries; delete s.lockMinutes; return s; },
 
     updateSettings(patch) {
       mutate((d) => {
         ['extendMinutes', 'alertSound', 'alertSoundSupport'].forEach((k) => { if (k in patch) d.settings[k] = patch[k]; });
       });
-    },
-
-    setExtensionCode(code) {
-      const c = String(code || '');
-      if (!/^\d{4}$/.test(c)) fail('BAD_CODE', '관리번호는 4자리 숫자여야 합니다.');
-      mutate((d) => { d.settings.extensionCodeHash = hashCode(c); });
     },
 
     // 침대
@@ -790,35 +768,6 @@
       });
     },
 
-    // extend_session (학생 태블릿, 관리번호 필요)
-    extendSession({ studentNo, code, deviceId }) {
-      const dev = deviceId || 'kiosk';
-      return mutate((d) => {
-        kioskOpen(d);
-        const lock = d.lockouts[dev] || { fails: 0, until: 0 };
-        if (lock.until > Date.now()) fail('LOCKED', '잠시 뒤에 다시 해 주세요.', { until: lock.until });
-        const s = activeFor(d, normalizeStudentNo(studentNo));
-        if (!s) fail('NOT_ACTIVE', '사용 중인 침대가 없습니다.');
-        if (s.leaveAt) fail('LEAVING', '이미 퇴실을 요청했습니다.');
-        if (hashCode(String(code || '')) !== d.settings.extensionCodeHash) {
-          lock.fails += 1;
-          if (lock.fails >= d.settings.maxCodeTries) {
-            lock.until = Date.now() + d.settings.lockMinutes * MIN;
-            lock.fails = 0;
-            d.lockouts[dev] = lock;
-            fail('LOCKED', '관리번호를 ' + d.settings.maxCodeTries + '번 틀려서 1분 동안 연장할 수 없습니다.', { until: lock.until });
-          }
-          d.lockouts[dev] = lock;
-          fail('WRONG_CODE', '관리번호가 맞지 않습니다.', { left: d.settings.maxCodeTries - lock.fails });
-        }
-        d.lockouts[dev] = { fails: 0, until: 0 };
-        s.dueAt = dueOf(s) + d.settings.extendMinutes * MIN;
-        s.extensionCount += 1;
-        logEvent(d, s.id, 'extend', 'kiosk');
-        return sessionView(d, s, 'nurse');
-      });
-    },
-
     // 퇴실 요청 (보건실 태블릿 'kiosk' · 학생지원실 태블릿 'office'). 근무 시간과 상관없이 언제나 된다.
     // 침대는 학생지원실에서 [퇴실 확인]을 누를 때까지 "퇴실 중"으로 남는다.
     requestLeave({ studentNo, from }) {
@@ -829,6 +778,17 @@
         const by = from === 'office' ? 'office' : 'kiosk';
         s.leaveAt = Date.now(); s.leaveFrom = by;
         logEvent(d, s.id, 'leave-request', by);
+        return sessionView(d, s, 'nurse');
+      });
+    },
+
+    // 학생지원실 학생용 태블릿에서 퇴실 (학생이 학생지원실에 와 있으므로 바로 끝낸다. 퇴실 중인 학생도 여기서 끝난다)
+    officeEnd(studentNo) {
+      return mutate((d) => {
+        const s = activeFor(d, normalizeStudentNo(studentNo));
+        if (!s) fail('NOT_ACTIVE', '사용 중인 침대가 없습니다.');
+        s.status = 'ended'; s.endedAt = Date.now(); s.endedBy = 'office';
+        logEvent(d, s.id, 'end', 'office');
         return sessionView(d, s, 'nurse');
       });
     },
@@ -887,12 +847,13 @@
     },
 
     // nurse_extend / nurse_end / nurse_move / nurse_cancel
-    // 학생지원실의 연장·퇴실은 근무 시간 밖이거나 퇴근 10분 전부터만 된다. 보건 조교는 언제나 된다.
+    // 연장은 보건 선생님과 학생지원실(보건 조교 포함) PC에서 언제나 된다 (학생용 태블릿에서는 연장하지 않는다).
+    // 학생지원실의 퇴실 처리는 근무 시간 밖이거나 퇴근 10분 전부터만 된다. 보건 조교는 언제나 된다.
     staffExtend(sessionId, actor) {
       return mutate((d) => {
-        supportMayAct(d, actor);
         const s = d.sessions.find((x) => x.id === sessionId && x.status === 'active');
         if (!s) fail('NOT_ACTIVE', '이미 끝난 사용입니다.');
+        if (s.leaveAt) fail('LEAVING', '퇴실을 요청한 학생입니다.');
         s.dueAt = dueOf(s) + d.settings.extendMinutes * MIN;
         s.extensionCount += 1;
         logEvent(d, s.id, 'extend', actor);
@@ -963,11 +924,6 @@
         .filter((s) => dayKey(s.startedAt) === key)
         .sort((a, b) => b.startedAt - a.startedAt)
         .map((s) => sessionView(data, s, role));
-    },
-
-    lockState(deviceId) {
-      const l = read().lockouts[deviceId || 'kiosk'];
-      return l && l.until > Date.now() ? l.until : 0;
     },
 
     resetDemo() {
