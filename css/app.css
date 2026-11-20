@@ -301,7 +301,8 @@ a { color: inherit; }
 .slot.is-tier .tag-actions .btn { min-height: 44px; padding: 0 14px; }
 .slot.is-tier .tag-actions .icon-btn { width: 44px; height: 44px; }
 .slot.is-tier.is-empty { flex-direction: row; gap: 16px; min-height: 72px; }
-.slot.is-tier .slot-empty { flex-direction: row; gap: 8px; align-items: baseline; }
+/* 2층 칸의 빈 침대: "위층"·"아래층"과 "비어 있음"을 두 줄로, 가운데 정렬 */
+.slot.is-tier .slot-empty { flex-direction: column; gap: 2px; align-items: center; text-align: center; line-height: 1.25; }
 
 /* 자석 붙이기 · 떼기 · 뒤집기 */
 @keyframes snap-in {
