@@ -142,8 +142,9 @@
       const sum = App.boardSummary(board, now);
       freeEl.innerHTML = '빈 침대 <b>' + sum.free + '</b><span class="of">/ ' + sum.total + '</span>' +
         '<span class="split">남 ' + sum.freeM + ' <span class="dot">·</span> 여 ' + sum.freeF + '</span>' +
-        (sum.over ? '<span class="over-count">' + window.icon('clock') + '초과 ' + sum.over + '</span>' : '') +
-        (sum.leaving ? '<span class="leave-count">' + window.icon('logout') + '퇴실 중 ' + sum.leaving + '</span>' : '');
+        // 좁은 화면에서는 '초과'·'퇴실 중' 글자를 숨기고 아이콘과 숫자만 (위쪽 바가 두 줄이 되지 않게, 글자는 화면 읽기용으로 남긴다)
+        (sum.over ? '<span class="over-count" title="사용 시간 초과 ' + sum.over + '명">' + window.icon('clock') + '<span class="pill-label">초과 </span>' + sum.over + '</span>' : '') +
+        (sum.leaving ? '<span class="leave-count" title="퇴실 중 ' + sum.leaving + '명">' + window.icon('logout') + '<span class="pill-label">퇴실 중 </span>' + sum.leaving + '</span>' : '');
     }
 
     root.addEventListener('click', async (e) => {

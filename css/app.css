@@ -261,7 +261,8 @@ a { color: inherit; }
 .tag-time { margin-top: auto; padding-top: 8px; font-size: min(clamp(40px, 3.4vw, 56px), 19cqw); white-space: nowrap; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
 .tag-time .unit { font-size: 0.42em; font-weight: 700; margin: 0 0.12em 0 0.06em; letter-spacing: 0; }
 .tag-left { margin-top: 6px; font-size: var(--fs); color: var(--magnet-ink-2); }
-.tag-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+/* 버튼이 한 줄에 다 들어가지 않는 좁은 카드에서는 다음 줄로 (카드 밖으로 나가지 않게) */
+.tag-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 .tag .btn-ghost, .tag .icon-btn.btn-ghost { border-color: var(--magnet-ink); color: var(--magnet-ink); }
 .tag .btn-ghost:hover:not(:disabled) { background: var(--magnet-press); }
 
@@ -672,17 +673,23 @@ body[data-screen="kiosk"], body[data-screen="office"] { overflow: hidden; }
 body.is-offline .topbar { box-shadow: inset 0 -3px 0 var(--over); }
 
 /* ── 화면 폭에 따라 (칸 단위로만 다시 배치) ───────────────── */
-@media (max-width: 1640px) {
-  .tab .ico { display: none; }
-  .free .split { display: none; }
+/* 좁은 화면: 위쪽 바의 "초과"·"퇴실 중"은 아이콘과 숫자만 (글자는 화면 읽기용으로 남긴다) */
+@media (max-width: 1760px) {
   /* 위쪽 바가 두 줄이 되지 않게 "알림음 테스트"는 스피커 그림만 (이름은 마우스를 올리면 보인다) */
   .tb-btn { padding: 0; width: 48px; justify-content: center; }
   .tb-btn span { display: none; }
+  .free .pill-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+}
+@media (max-width: 1640px) {
+  .tab .ico { display: none; }
+  .free .split { display: none; }
 }
 @media (max-width: 1380px) {
   .scanbar input { width: 170px; }
   .tab { padding: 0 12px; } /* 1366 화면에서도 위쪽 바가 한 줄에 들어가게 */
   .brand-text small { display: none; }
+  /* 연결되어 있을 때는 초록 점만 ("연결됨" 글자는 화면 읽기용으로 남긴다). 끊기면 "연결 끊김" 글자가 보인다 */
+  .topbar .live[data-state="on"] span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 @media (max-width: 1180px) {
   .board { grid-template-columns: 1fr; }
@@ -765,6 +772,8 @@ body.is-offline .topbar { box-shadow: inset 0 -3px 0 var(--over); }
 
 /* ── 줄바꿈 단위 · 태블릿 글자 하한 ───────────────────────── */
 .nowrap, .meta-item { white-space: nowrap; }
+/* 이름표 정보 줄(등록·퇴실 요청): 덩어리(nowrap) 사이에서만 줄을 바꾼다 */
+.meta-item.meta-wrap { white-space: normal; }
 /* 2층 침대 이름표는 내용만큼만: 아래에 빈 색 띠를 남기지 않는다 */
 .slot.is-tier .tag { align-self: flex-start; }
 /* 학생용 태블릿은 글자 24px 이상 */

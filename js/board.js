@@ -54,7 +54,8 @@
     const atHTML = opts.admin
       ? '<button type="button" class="time-edit" data-act="edit-start" data-id="' + s.id + '" title="등록 시간 수정" aria-label="' + esc(s.name) + ' 학생 등록 시간 ' + at + ' 수정"><b>' + at + '</b>' + window.icon('edit') + '</button>'
       : '<b>' + at + '</b>';
-    const regHTML = (src ? '<b>' + esc(src) + '</b>' + esc(App.josa(src, '이', '가').slice(src.length)) + ' ' : '') + atHTML + '에 등록';
+    // 좁은 카드에서는 '학지실 태블릿이' / '18:00에 등록' 사이에서만 줄을 바꾼다 (카드 밖으로 나가지 않게)
+    const regHTML = (src ? '<span class="nowrap"><b>' + esc(src) + '</b>' + esc(App.josa(src, '이', '가').slice(src.length)) + '</span> ' : '') + '<span class="nowrap">' + atHTML + '에 등록</span>';
 
     // 연장: 보건 선생님·학생지원실 모두 언제나 (학생용 태블릿에서는 연장하지 않는다).
     // 퇴실: 학생지원실은 보건 선생님 퇴근 10분 전부터(근무 시간 밖에는 언제나). 그 전에는 등록 취소만.
@@ -80,7 +81,7 @@
         '</div>' +
         '<h3 class="tag-name"><span class="tag-who">' + esc(s.name) + '</span>' +
           (showNo && s.studentNo ? '<span class="tag-no"><span class="sr">학번 </span>' + esc(s.studentNo) + '</span>' : '') + '</h3>' +
-        '<p class="tag-meta" title="' + esc(regText) + '"><span class="meta-item">' + regHTML + '</span></p>' +
+        '<p class="tag-meta" title="' + esc(regText) + '"><span class="meta-item meta-wrap">' + regHTML + '</span></p>' +
         (over ? '<p class="tag-alert">' + window.icon('clock') + '<span>' + App.overLabel(s) + '</span></p>' : '') +
         '<p class="tag-time" aria-label="경과 시간 ' + App.elapsedText(s.startedAt, now) + '">' + App.elapsedHTML(s.startedAt, now) + '</p>' +
         '<p class="tag-left">' + (over ? App.hm(due) + '보다 ' + App.durationText(overMin) + ' 더 사용' : App.hm(due) + '까지 · 남은 시간 ' + App.durationText(leftMin)) + '</p>' +
@@ -109,10 +110,11 @@
         '<div class="tag-top"><span class="tag-bed">' + esc(b.label) + ' 침대</span><span class="chip chip-leave">' + window.icon('logout') + '<span>퇴실 중</span></span></div>' +
         '<h3 class="tag-name"><span class="tag-who">' + esc(s.name) + '</span>' +
           (showNo && s.studentNo ? '<span class="tag-no"><span class="sr">학번 </span>' + esc(s.studentNo) + '</span>' : '') + '</h3>' +
-        '<p class="tag-meta" title="' + esc(from + '에서 ' + at + '에 퇴실 요청') + '"><span class="meta-item"><b>' + esc(from) + '</b>에서 <b>' + at + '</b>에 퇴실 요청</span></p>' +
+        // 좁은 카드에서는 '○○ 태블릿에서' / '17:02에 퇴실 요청' 사이에서 줄을 바꾼다 (카드 밖으로 나가지 않게)
+        '<p class="tag-meta" title="' + esc(from + '에서 ' + at + '에 퇴실 요청') + '"><span class="meta-item meta-wrap"><span class="nowrap"><b>' + esc(from) + '</b>에서</span> <span class="nowrap"><b>' + at + '</b>에 퇴실 요청</span></span></p>' +
         (late ? '<p class="tag-alert">' + window.icon('clock') + '<span>퇴실 확인 안 됨</span></p>' : '') +
         '<p class="tag-time" aria-label="퇴실 요청 후 ' + App.elapsedText(s.leaveAt, now) + '">' + App.elapsedHTML(s.leaveAt, now) + '</p>' +
-        '<p class="tag-left">' + (s.leaveAlertAt ? '잔디로 알렸습니다 · ' : '') + '학생지원실에서 확인하면 퇴실이 끝납니다</p>' +
+        (s.leaveAlertAt ? '<p class="tag-left">잔디로 알렸습니다</p>' : '') +
         actions +
       '</div>' +
     '</article>';
