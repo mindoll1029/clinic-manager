@@ -16,13 +16,13 @@
   const TITLES = { login: '로그인', admin: '관리자', nurse: '보건 선생님', kiosk: '학생용 태블릿', support: '학생지원실' };
 
   // 탭마다 따로 로그인한다. 한 PC에서 여러 화면을 동시에 시험할 수 있다.
-  // 계정 이름은 저장된 계정에서 다시 읽는다 (이름이 바뀌어도 로그인한 탭에 바로 반영).
+  // 계정 이름과 기록 이름(source)은 저장된 계정에서 다시 읽는다 (바뀌어도 로그인한 탭에 바로 반영).
   const Auth = {
     get() {
       let a = null;
       try { a = JSON.parse(sessionStorage.getItem(AUTH_KEY)); } catch (e) { return null; }
       const acc = a && Store.accounts().find((x) => x.id === a.id);
-      if (acc) a.name = acc.name;
+      if (acc) { a.name = acc.name; a.source = acc.source; }
       return a;
     },
     set(a) { try { sessionStorage.setItem(AUTH_KEY, JSON.stringify(a)); } catch (e) { /* 무시 */ } },

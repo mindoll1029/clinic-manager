@@ -51,8 +51,9 @@
       : '<b>' + at + '</b>';
     const regHTML = (src ? '<b>' + esc(src) + '</b>' + esc(App.josa(src, '이', '가').slice(src.length)) + ' ' : '') + atHTML + '에 등록';
 
+    // 학생지원실은 보건 선생님 퇴근 10분 전부터(근무 시간 밖에는 언제나) 보건 선생님처럼 연장·퇴실한다
     let actions = '';
-    if (opts.mode === 'nurse') {
+    if (opts.mode === 'nurse' || (opts.mode === 'support' && opts.manage)) {
       actions = '<div class="tag-actions">' +
         '<button class="btn btn-primary" data-act="extend" data-id="' + s.id + '">' + window.icon('plus') + '<span>연장</span></button>' +
         '<span class="spacer"></span>' +
@@ -108,7 +109,7 @@
 
     // 바뀐 것이 없으면 다시 그리지 않는다 (같은 변경 알림이 두 번 와도 자석 움직임이 끊기지 않게)
     // 초과로 넘어간 침대도 넣어 둔다 (분이 바뀌지 않아도 초과 순간을 놓치지 않게)
-    const sig = opts.mode + '|' + Math.floor(now / App.MIN) + '|' + [...overIds].join(',') + '|' + JSON.stringify(board.map((b) => [b.id, b.label, b.zone, b.tier,
+    const sig = opts.mode + '|' + !!opts.manage + '|' + Math.floor(now / App.MIN) + '|' + [...overIds].join(',') + '|' + JSON.stringify(board.map((b) => [b.id, b.label, b.zone, b.tier,
       b.session && [b.session.id, b.session.name, b.session.startedAt, b.session.dueAt, b.session.extensionCount]]));
     if (prev && prev.sig === sig && !opts._afterLift) return summary(board, now);
 
@@ -127,10 +128,6 @@
       added: new Set(prev ? [...ids].filter((id) => !prev.ids.has(id)) : []),
       flipped: new Set(prev ? [...overIds].filter((id) => !prev.over.has(id)) : []),
     };
-
-    if (prev && motion.flipped.size && opts.onOver) {
-      board.filter((b) => b.session && motion.flipped.has(b.session.id)).forEach((b) => opts.onOver(b));
-    }
 
     const M = board.filter((b) => b.zone === 'M');
     const F = board.filter((b) => b.zone === 'F');
@@ -210,8 +207,9 @@
   }
 
   // ── 직원 등록 흐름 ─────────────────────────────────────────
-  async function staffRegister(raw, role, presetBed) {
-    const source = role === 'admin' ? 'nurse' : role;
+  // role: 권한(nurse·support·admin), by: 기록에 남길 이름 (보건 조교 → 'assistant'). 없으면 역할로 남긴다.
+  async function staffRegister(raw, role, presetBed, by) {
+    const source = by || (role === 'admin' ? 'nurse' : role);
     let student;
     try {
       student = Store.lookupStudent(raw, role === 'admin' ? 'nurse' : role);
@@ -319,8 +317,9 @@
   }
 
   // ── 카드 동작 ──────────────────────────────────────────────
-  function bindActions(container, role) {
-    const actor = role;
+  // role: 권한(nurse·support), by: 기록에 남길 이름 (보건 조교 → 'assistant')
+  function bindActions(container, role, by) {
+    const actor = by || role;
     container.addEventListener('click', async (ev) => {
       const btn = ev.target.closest('[data-act]');
       if (!btn) return;
@@ -333,7 +332,6 @@
           const st = Store.settings();
           const s = b.session;
           const endAt = App.dueAt(s);
-          const atMax = s.extensionCount >= st.maxExtensions;
           const go = await App.dialog({
             title: '연장 확인',
             className: 'sheet-confirm',
@@ -342,8 +340,7 @@
                 '<div><dt>지금까지</dt><dd>' + App.elapsedText(s.startedAt, Store.now()) + ' 사용</dd></div>' +
                 '<div><dt>끝나는 시각</dt><dd>' + App.hm(endAt) + ' → <b>' + App.hm(endAt + st.extendMinutes * App.MIN) + '</b></dd></div>' +
                 '<div><dt>연장 횟수</dt><dd>' + s.extensionCount + '회 → <b>' + (s.extensionCount + 1) + '회</b></dd></div>' +
-              '</dl>' +
-              (atMax ? '<p class="sheet-warn">' + window.icon('alert') + '<span>최대 연장 횟수(' + st.maxExtensions + '회)를 이미 채웠습니다. 그래도 연장할 수 있습니다.</span></p>' : ''),
+              '</dl>',
             actions: [
               { label: '돌아가기', value: '__cancel' },
               { label: st.extendMinutes + '분 연장', value: 'yes', kind: 'primary', icon: 'plus' },
@@ -369,15 +366,16 @@
         } else if (btn.dataset.act === 'more') {
           const b = find();
           if (!b) return;
+          // 학생지원실의 ⋯ 메뉴에는 등록 취소만 있다 (침대 이동은 보건 선생님만)
           const choice = await App.dialog({
             title: b.label + ' 침대 · ' + b.session.name,
             body: '<div class="menu-list">' +
-              '<button class="menu-item" value="move">' + window.icon('move') + '<span><b>침대 이동</b><small>다른 빈 침대로 옮깁니다</small></span></button>' +
+              (role === 'nurse' ? '<button class="menu-item" value="move">' + window.icon('move') + '<span><b>침대 이동</b><small>다른 빈 침대로 옮깁니다</small></span></button>' : '') +
               '<button class="menu-item is-danger" value="cancel">' + window.icon('undo') + '<span><b>등록 취소</b><small>잘못 등록한 경우. 기록에 "취소"로 남습니다</small></span></button>' +
               '</div>',
           });
           if (choice === 'move') {
-            const to = await pickBed({ student: { name: b.session.name, gender: b.session.gender, no: b.session.studentNo, grade: b.session.grade, classNo: b.session.classNo }, title: b.session.name + ' 학생 침대 이동', confirmLabel: '이동', exceptSession: id });
+            const to = await pickBed({ student: { name: b.session.name, gender: b.session.gender, no: b.session.studentNo, classNo: b.session.classNo, group: b.session.group }, title: b.session.name + ' 학생 침대 이동', confirmLabel: '이동', exceptSession: id });
             if (!to || to === b.id) return;
             Store.staffMove(id, to, actor);
             App.toast(b.session.name + ' 학생 침대 이동');
@@ -401,7 +399,7 @@
               return 'no:' + v;
             },
           });
-          if (no && no.startsWith('no:')) await staffRegister(no.slice(3), role, bedId);
+          if (no && no.startsWith('no:')) await staffRegister(no.slice(3), role, bedId, by);
         }
       } catch (e) {
         App.sound.error();

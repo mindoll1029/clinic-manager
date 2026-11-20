@@ -1,4 +1,5 @@
-/* 학생용 태블릿 화면: 스캔 → 침대 고르기 → 완료, 사용 중이면 퇴실·연장 */
+/* 학생용 태블릿 화면: 스캔 → 침대 고르기 → 완료, 사용 중이면 퇴실·연장.
+   보건 선생님 근무 시간 밖에는 현황만 보여 준다 (등록·연장·퇴실은 학생지원실에서). */
 (function () {
   'use strict';
   const App = window.App;
@@ -8,13 +9,13 @@
   const IDLE_MS = 30 * 1000;   // 입력이 없으면 처음 화면으로
   const DONE_MS = 5 * 1000;    // 완료 화면은 5초 뒤 처음으로
   const ERROR_MS = 4 * 1000;
+  const NUDGE_MS = 1500;       // 근무 시간 밖에 스캔하면 안내를 잠깐 흔든다
   const DEVICE = 'kiosk-nurse-room';
 
   // 학생에게 보이는 오류는 해요체로. 사용자가 정한 문구(학번 확인, 빈 침대 없음)는 그대로 둔다.
   const SAY = {
     WRONG_CODE: '관리번호가 달라요.',
     LOCKED: '여러 번 틀려서 잠시 연장할 수 없어요.',
-    MAX_EXT: '더 연장할 수 없어요. 보건 선생님께 말해 주세요.',
     NOT_ACTIVE: '사용 중인 침대가 없어요.',
     ALREADY_ACTIVE: '이미 침대를 쓰고 있어요.',
     BED_TAKEN: '방금 다른 학생이 그 침대를 골랐어요. 다른 침대를 골라 주세요.',
@@ -65,17 +66,37 @@
     function go(next) {
       clearTimeout(stepTimer);
       clearInterval(lockTimer);
+      // 근무 시간 밖에는 처음 화면 대신 현황 화면(off)을 연다
+      const on = Store.duty().on;
+      if (next.step === 'scan' && !on) next = { step: 'off' };
+      else if (next.step === 'off' && on) next = { step: 'scan' };
       state = Object.assign({}, next);
       draw();
       if (state.step === 'done') stepTimer = setTimeout(() => go({ step: 'scan' }), DONE_MS);
       if (state.step === 'error') stepTimer = setTimeout(() => go({ step: 'scan' }), ERROR_MS);
+      if (state.step === 'off' && state.nudge) {
+        stepTimer = setTimeout(() => {
+          state = Object.assign({}, state, { nudge: false });
+          const head = stage.querySelector('.k-off-head');
+          if (head) head.classList.remove('is-nudge');
+        }, NUDGE_MS);
+      }
       armIdle();
       keepFocus();
     }
 
+    // 근무 시간이 시작되거나 끝나면 화면을 바꾼다. 바꿨으면 true.
+    // 완료 화면은 5초 뒤 처음 화면으로 갈 때 바뀐다 (방금 등록한 학생이 침대 번호를 볼 수 있게).
+    function syncDuty() {
+      const on = Store.duty().on;
+      if (!on && state.step !== 'off' && state.step !== 'done') { go({ step: 'off' }); return true; }
+      if (on && state.step === 'off') { go({ step: 'scan' }); return true; }
+      return false;
+    }
+
     function armIdle() {
       clearTimeout(idleTimer);
-      if (state.step !== 'scan') idleTimer = setTimeout(() => go({ step: 'scan' }), IDLE_MS);
+      if (state.step !== 'scan' && state.step !== 'off') idleTimer = setTimeout(() => go({ step: 'scan' }), IDLE_MS);
     }
 
     function keepFocus() {
@@ -95,23 +116,28 @@
         : '<button type="button" class="key" data-key="' + k + '">' + k + '</button>').join('') + '</div>';
     }
 
+    // student가 없으면 고를 수 없는 현황판 (근무 시간 밖 화면)
     function bedGrid(student, selected) {
       const now = Store.now();
       const board = Store.board('kiosk');
       const bedBtn = (b, mine) => {
         const s = b.session;
         const over = s && App.isOver(s, now);
-        const can = !s && mine;
+        const can = !!student && !s && mine;
         return '<button type="button" class="k-bed' + (s ? ' is-busy' : ' is-free') + (over ? ' is-over' : '') + (b.tier ? ' is-tier' : '') + (selected === b.id ? ' is-picked' : '') + '"' +
           (can ? ' data-bed="' + b.id + '" aria-pressed="' + (selected === b.id) + '"' : ' disabled') +
           ' aria-label="' + esc(App.bedName(b.label, b.tier)) + (s ? ' 사용 중' : mine ? ' 비어 있음' : '') + '">' +
-          '<span class="k-bed-no">' + esc(b.label) + (b.tier ? '<small>' + (b.tier === 'upper' ? '위층' : '아래층') + '</small>' : '') + '</span>' +
-          '<span class="k-bed-state">' + (s ? (over ? window.icon('clock') : '') + esc(s.name) + ' · ' + App.elapsedText(s.startedAt, now) : mine ? '비어 있음' : '') + '</span>' +
+          // k-bed-in: 칸 크기에 따라 번호와 상태를 위아래 또는 한 줄로 놓는다 (css: @container)
+          '<span class="k-bed-in">' +
+            '<span class="k-bed-no">' + esc(b.label) + (b.tier ? '<small>' + (b.tier === 'upper' ? '위층' : '아래층') + '</small>' : '') + '</span>' +
+            // 이름과 경과 시간을 나눠 둔다: 자리가 모자라면 이름만 "…"로 줄이고 시간은 끝까지 보인다
+            '<span class="k-bed-state">' + (s ? (over ? window.icon('clock') : '') + '<span class="k-bed-who">' + esc(s.name) + '</span><span class="k-bed-time">' + App.elapsedText(s.startedAt, now) + '</span>' : mine ? '<span class="k-bed-who">비어 있음</span>' : '') + '</span>' +
+          '</span>' +
           (selected === b.id ? '<span class="k-bed-check">' + window.icon('check') + '</span>' : '') +
         '</button>';
       };
       const zone = (z) => {
-        const mine = !student.gender || student.gender === z;
+        const mine = !student || !student.gender || student.gender === z;
         const cells = App.groupBeds(board.filter((b) => b.zone === z));
         return '<section class="k-zone' + (mine ? '' : ' is-other') + '" aria-label="' + App.ZONE[z] + ' 침대"><h2>' + App.ZONE[z] + ' 침대</h2>' +
           '<div class="k-beds" style="--cols:' + (cells.length <= 4 ? 2 : 3) + '">' +
@@ -134,6 +160,16 @@
           '<p class="k-sub">처음 쉬러 왔을 때도, 다 쉬고 나갈 때도 스캔해요.</p>' +
           '<button type="button" class="btn btn-ghost btn-xl" data-go="type">' + window.icon('keypad') + '<span>학번 직접 입력</span></button>' +
         '</section>';
+      } else if (s.step === 'off') {
+        // 근무 시간 밖: 현황만. 스캔하면 안내가 잠깐 흔들린다.
+        html = '<section class="k-step k-pick k-off">' +
+          '<header class="k-off-head' + (s.nudge ? ' is-nudge' : '') + '">' +
+            '<span class="k-off-mark" aria-hidden="true">' + window.icon('moon') + '</span>' +
+            '<div class="k-off-text"><h1>지금은 보건 선생님이 안 계세요</h1>' +
+              '<p class="k-sub">등록·연장·퇴실은 <b>강의동 학생지원실</b>에서 하세요.</p></div>' +
+          '</header>' +
+          bedGrid(null) +
+        '</section>';
       } else if (s.step === 'type') {
         const buf = s.buf || '';
         html = '<section class="k-step k-type">' +
@@ -154,15 +190,12 @@
       } else if (s.step === 'choice') {
         const a = s.student.active;
         const over = App.isOver(a, now);
-        const max = Store.settings().maxExtensions;
         html = '<section class="k-step k-choice">' +
           '<h1><b>' + esc(s.student.name) + '</b> 학생은 휴식 중입니다</h1>' +
           '<p class="k-elapsed' + (over ? ' is-over' : '') + '">' + (over ? window.icon('clock') : '') + '<span>' + App.elapsedText(a.startedAt, now) + ' 사용</span>' + (over ? '<span class="chip chip-over">' + App.overLabel(a) + '</span>' : '') + '</p>' +
           '<div class="k-choices">' +
             '<button type="button" class="k-choice-btn is-primary" data-go="confirmEnd">' + window.icon('logout') + '<b>퇴실하기</b><small>다 쉬었어요</small></button>' +
-            (a.extensionCount >= max
-              ? '<button type="button" class="k-choice-btn" disabled>' + window.icon('lock') + '<b>연장할 수 없어요</b><small>보건 선생님께 말해 주세요</small></button>'
-              : '<button type="button" class="k-choice-btn" data-go="code">' + window.icon('plus') + '<b>연장하기</b><small>관리번호가 필요해요</small></button>') +
+            '<button type="button" class="k-choice-btn" data-go="code">' + window.icon('plus') + '<b>연장하기</b><small>관리번호가 필요해요</small></button>' +
           '</div>' +
           '<button type="button" class="btn btn-ghost btn-lg" data-go="scan">' + window.icon('back') + '<span>처음으로</span></button>' +
         '</section>';
@@ -218,6 +251,7 @@
     }
 
     function lookup(raw) {
+      if (!Store.duty().on) { App.sound.error(); return go({ step: 'off', nudge: true }); }
       let st;
       try { st = Store.lookupStudent(raw, 'kiosk'); }
       catch (e) {
@@ -258,7 +292,8 @@
           go({ step: 'done', title: Store.settings().extendMinutes + '분 연장했어요', sub: '더 쉬어요. 연장 ' + r.extensionCount + '회째예요.' });
         } catch (e) {
           App.sound.error();
-          if (e.code === 'MAX_EXT' || e.code === 'NOT_ACTIVE') return go({ step: 'error', message: say(e) });
+          if (e.code === 'OFF_DUTY') return go({ step: 'off', nudge: true });
+          if (e.code === 'NOT_ACTIVE') return go({ step: 'error', message: say(e) });
           state = Object.assign({}, state, { buf: '', error: say(e), errorNote: e.code === 'WRONG_CODE' ? '남은 기회 ' + e.left + '번' : null });
           draw();
         }
@@ -300,6 +335,7 @@
         } catch (e) {
           App.sound.error();
           if (e.code === 'BED_TAKEN') { state = Object.assign({}, state, { bedId: null }); draw(); App.toast(say(e), 'error'); }
+          else if (e.code === 'OFF_DUTY') go({ step: 'off', nudge: true });
           else go({ step: 'error', message: say(e) });
         }
       }
@@ -308,7 +344,7 @@
           const r = Store.endSession(state.student.no);
           App.sound.ok();
           go({ step: 'done', title: '퇴실했어요', sub: App.elapsedText(r.startedAt, r.endedAt) + ' 사용<br>몸조리 잘 해요.' });
-        } catch (e) { App.sound.error(); go({ step: 'error', message: say(e) }); }
+        } catch (e) { App.sound.error(); go(e.code === 'OFF_DUTY' ? { step: 'off', nudge: true } : { step: 'error', message: say(e) }); }
       }
       keepFocus();
     });
@@ -371,9 +407,12 @@
     return {
       refresh() {
         // 다른 화면에서 바뀐 내용을 반영한다. 입력 중인 단계는 건드리지 않는다.
+        // 근무 일정이 바뀌어 근무 시간이 끝났으면 입력 중이어도 현황 화면으로 바꾼다.
         topCounts();
+        if (syncDuty()) return;
         if (selfWrite) return;
-        if (state.step === 'pick') {
+        if (state.step === 'off') draw();
+        else if (state.step === 'pick') {
           const still = state.bedId && Store.board('kiosk').find((b) => b.id === state.bedId && !b.session);
           if (state.bedId && !still) { state = Object.assign({}, state, { bedId: null }); App.toast('고른 침대를 방금 다른 학생이 골랐어요. 다시 골라 주세요.', 'error'); }
           draw();
@@ -382,7 +421,10 @@
           if (!fresh.active) go({ step: 'scan' }); else { state = Object.assign({}, state, { student: fresh }); draw(); }
         }
       },
-      tick() { if (state.step === 'pick' || state.step === 'choice') this.refresh(); else topCounts(); },
+      tick() {
+        if (syncDuty()) { topCounts(); return; }
+        if (state.step === 'pick' || state.step === 'choice' || state.step === 'off') this.refresh(); else topCounts();
+      },
       destroy() {
         clearTimeout(idleTimer); clearTimeout(stepTimer); clearInterval(lockTimer);
         document.removeEventListener('keydown', onKey);

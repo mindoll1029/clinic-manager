@@ -24,10 +24,18 @@
   const EVENT_CAP = REMOTE ? 300 : 2000; // 원격 모드는 한 줄을 통째로 주고받으므로 작게 유지한다
 
   // ── 기본 데이터 ─────────────────────────────────────────────
+  // 보건 선생님 근무 일정. week는 요일별(0 = 일요일 … 6 = 토요일), days는 그날만 다른 날(연차·조퇴 등).
+  // 근무 시간 밖에는 학생용 태블릿이 현황만 보여 주고, 학생지원실이 연장·퇴실을 맡는다.
+  // 학생지원실의 연장·퇴실은 퇴근 HANDOVER_MINUTES분 전부터 열린다. (보건 조교는 언제나)
+  const HANDOVER_MINUTES = 10;
+  function defaultSchedule() {
+    const day = (on) => ({ on, start: '08:30', end: '17:30' });
+    return { week: [day(false), day(true), day(true), day(true), day(true), day(true), day(false)], days: [] };
+  }
+
   // 사용 시간: 등록한 뒤 다음 정각(한국 표준시)까지 고정. 연장하면 끝나는 시각에 연장 시간을 더한다.
   const DEFAULT_SETTINGS = {
     extendMinutes: 60,        // 연장 1회 시간
-    maxExtensions: 2,         // 최대 연장 횟수
     extensionCodeHash: null,  // 관리번호 (해시만 저장)
     maxCodeTries: 5,          // 연속 실패 허용 횟수
     lockMinutes: 1,           // 잠금 시간
@@ -35,13 +43,18 @@
     alertSoundSupport: true,  // 초과 알림음 (학생지원실 화면)
     rosterSheetUrl: '',       // 학생 명단을 불러오는 구글 스프레드시트 링크
     rosterLoadedAt: 0,        // 명단을 마지막으로 불러온 시각
+    dutySchedule: defaultSchedule(), // 보건 선생님 근무 일정
   };
 
+  // source: 기록의 "등록 위치"와 현황판 "누가 등록"에 남는 이름. 없으면 역할(role)을 쓴다.
+  // 보건 조교는 학생지원실 화면(role: support)을 쓰고, 기록에는 "보건 조교"로 남는다.
+  // 학생지원실과 달리 연장·퇴실은 보건 선생님 근무 시간과 상관없이 언제나 할 수 있다.
   const DEFAULT_ACCOUNTS = [
     { id: 'admin', role: 'admin', name: '관리자', password: 'admin1234' },
     { id: 'nurse', role: 'nurse', name: '보건 선생님', password: 'nurse1234' },
     { id: 'kiosk-nurse-room', role: 'kiosk', name: '보건실 학생 태블릿', password: 'kiosk1234' },
     { id: 'support-office', role: 'support', name: '강의동 학생지원실', password: 'support1234' },
+    { id: 'nurse-assistant', role: 'support', name: '보건 조교', password: 'assist1234', source: 'assistant' },
   ];
 
   // 남학생 5자리(6~10번), 여학생 5자리(1~5번). 구역마다 2층 침대 하나(아래층·위층)가 있다.
@@ -64,7 +77,7 @@
   ];
   // 현황판: 남학생 [10번][6번] / [2층: 9번·8번][7번], 여학생 [5번][1번] / [4번][2층: 3번·2번]
 
-  const DATA_VERSION = 5;
+  const DATA_VERSION = 6;
 
   // 예전(version 1) 기본 침대 번호. 이대로 남아 있으면 새 번호·배치로 바꾼다.
   const LEGACY_LABELS = { b1: '1번', b2: '2번', b3: '3번', b4: '4번', b5: '5번', b6: '6번', b7: '7번', b8: '8번', b9: '9번', b10: '10번' };
@@ -81,12 +94,12 @@
     ['주동하', 'M'], ['우채은', 'F'], ['구민재', 'M'], ['민서윤', 'F'], ['나이현', 'F'],
   ];
 
+  // 학생: 반(classNo)·그룹(group)은 글자 그대로 둔다 ("3", "3반", "A", "햇살" 모두 가능)
   function sampleStudents() {
     return SAMPLE_NAMES.map(([name, gender], i) => {
-      const grade = (i % 3) + 1;
-      const classNo = (Math.floor(i / 3) % 6) + 1;
-      const number = Math.floor(i / 18) * 10 + (i % 9) + 1;
-      return { no: String(1001 + i), name, grade, classNo, number, gender, active: true };
+      const classNo = String((Math.floor(i / 4) % 6) + 1);
+      const group = ['A', 'B', 'C', 'D'][i % 4];
+      return { no: String(1001 + i), name, classNo, group, gender, active: true };
     });
   }
 
@@ -140,6 +153,80 @@
     err.code = code;
     Object.assign(err, extra || {});
     throw err;
+  }
+
+  function hhmm(ts) {
+    const d = new Date(ts);
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  // ── 근무 일정 ──────────────────────────────────────────────
+  // 시각은 이 기기의 시계(한국 표준시로 맞춰 둔 PC·태블릿)를 기준으로 한다. 기록의 날짜·시각과 같다.
+  const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
+
+  // ts가 속한 날의 근무 시간. 그날만 다른 일정이 있으면 그것을, 없으면 요일 일정을 쓴다. 근무가 없으면 null.
+  function shiftOn(sched, ts) {
+    const key = dayKey(ts);
+    const special = ((sched && sched.days) || []).find((x) => x.date === key) || null;
+    const rule = special || ((sched && sched.week) || [])[new Date(ts).getDay()];
+    if (!rule || !rule.on || !TIME_RE.test(rule.start) || !TIME_RE.test(rule.end)) return null;
+    const at = (t) => { const d = new Date(ts); d.setHours(Number(t.slice(0, 2)), Number(t.slice(3)), 0, 0); return d.getTime(); };
+    const start = at(rule.start), end = at(rule.end);
+    if (end <= start) return null;
+    return { start, end, special: !!special, note: special ? special.note || '' : '' };
+  }
+
+  // 지금 근무 상태
+  //  on:          보건 선생님 근무 중 → 태블릿에서 등록·연장·퇴실
+  //  handover:    근무 중이지만 퇴근 10분 전부터 → 학생지원실도 연장·퇴실
+  //  supportActs: 학생지원실이 연장·퇴실할 수 있음 (근무 시간 밖이거나 퇴근 10분 전부터)
+  //  today:       오늘 근무 시간 { start, end } 또는 null, next: 다음 근무 시작 (근무 중이 아닐 때)
+  function dutyAt(sched, now) {
+    const today = shiftOn(sched, now);
+    const on = !!today && now >= today.start && now < today.end;
+    const handoverAt = today ? today.end - HANDOVER_MINUTES * MIN : null;
+    const handover = on && now >= handoverAt;
+    let next = null;
+    if (!on) {
+      if (today && now < today.start) next = today;
+      for (let i = 1; i <= 31 && !next; i++) {
+        const d = new Date(now);
+        d.setHours(12, 0, 0, 0);
+        d.setDate(d.getDate() + i);
+        next = shiftOn(sched, d.getTime());
+      }
+    }
+    return { on, handover, supportActs: !on || handover, today, handoverAt, next, handoverMinutes: HANDOVER_MINUTES };
+  }
+
+  function dutyOf(data) { return dutyAt(data.settings.dutySchedule || defaultSchedule(), Date.now()); }
+
+  // 화면에서 받은 일정을 확인하고 정리한다. 지난 날짜의 변경은 버린다.
+  function cleanSchedule(input) {
+    const src = input || {};
+    const base = defaultSchedule();
+    const checkTimes = (r, where) => {
+      if (!TIME_RE.test(r.start) || !TIME_RE.test(r.end)) fail('BAD_TIME', where + ' 근무 시각을 확인해 주세요.');
+      if (r.end <= r.start) fail('BAD_TIME', where + ' 퇴근 시각이 출근 시각보다 늦어야 합니다.');
+    };
+    const week = base.week.map((def, i) => {
+      const w = (src.week || [])[i] || {};
+      const r = { on: !!w.on, start: TIME_RE.test(w.start) ? w.start : def.start, end: TIME_RE.test(w.end) ? w.end : def.end };
+      if (r.on) checkTimes({ start: w.start, end: w.end }, WEEKDAY[i] + '요일');
+      return r;
+    });
+    const today = dayKey(Date.now());
+    const byDate = {};
+    (src.days || []).forEach((x) => {
+      if (!x || !DATE_RE.test(x.date) || x.date < today) return;
+      const r = { date: x.date, on: !!x.on, start: x.on ? x.start : '', end: x.on ? x.end : '', note: String(x.note || '').trim().slice(0, 20) };
+      if (r.on) checkTimes(r, x.date);
+      byDate[x.date] = r;
+    });
+    const days = Object.keys(byDate).sort().map((k) => byDate[k]);
+    return { week, days };
   }
 
   // ── 저장소 ─────────────────────────────────────────────────
@@ -213,15 +300,21 @@
     }
     // version 3: 침대 고르기 배치도 위치 변경, version 4: 여학생 현황판에서 4번과 2층 침대 자리 바꿈.
     // 기본 번호·구역 그대로인 침대만 기본 배치도 위치와 현황판 순서로 맞춘다.
+    // (version 5 이상 데이터는 건드리지 않는다. 설정에서 바꾼 침대 순서가 버전이 오를 때마다 되돌아가지 않게)
     const def = {};
     DEFAULT_BEDS.forEach((b) => { def[b.id] = b; });
-    if (data.beds.every((b) => def[b.id] && def[b.id].label === b.label && def[b.id].zone === b.zone)) {
+    if (v < 5 && data.beds.every((b) => def[b.id] && def[b.id].label === b.label && def[b.id].zone === b.zone)) {
       data.beds.forEach((b) => { b.row = def[b.id].row; b.col = def[b.id].col; b.order = def[b.id].order; });
     }
     // version 5: 끝나는 시각을 "등록 + 60분"에서 "등록 후 다음 정각 + 연장"으로
     (data.sessions || []).forEach((s) => {
       if (!s.dueAt) s.dueAt = nextHour(s.startedAt) + (s.extensionCount || 0) * data.settings.extendMinutes * MIN;
     });
+    // version 6: 보건 조교 계정, 보건 선생님 근무 일정
+    data.accounts = data.accounts || [];
+    DEFAULT_ACCOUNTS.forEach((a) => { if (!data.accounts.some((x) => x.id === a.id)) data.accounts.push(Object.assign({}, a)); });
+    const sched = data.settings.dutySchedule;
+    if (!sched || !Array.isArray(sched.week) || sched === DEFAULT_SETTINGS.dutySchedule) data.settings.dutySchedule = defaultSchedule();
     data.version = DATA_VERSION;
     return true;
   }
@@ -468,14 +561,14 @@
 
   // ── 조회 헬퍼 ──────────────────────────────────────────────
   function sessionView(data, s, role) {
-    const st = data.students.find((x) => x.no === s.studentNo) || { no: s.studentNo, name: s.tempName || '(명단 밖)', grade: null, classNo: null, gender: null };
+    const st = data.students.find((x) => x.no === s.studentNo) || { no: s.studentNo, name: s.tempName || '(명단 밖)', classNo: null, group: null, gender: null };
     const bed = data.beds.find((b) => b.id === s.bedId);
     const full = role === 'nurse' || role === 'admin' || role === 'support';
     return {
       id: s.id,
       studentNo: full ? st.no : null,
       name: full ? st.name : maskName(st.name),
-      grade: st.grade, classNo: st.classNo, gender: st.gender,
+      classNo: st.classNo || null, group: st.group || null, gender: st.gender,
       bedId: s.bedId, bedLabel: bed ? bed.label : '?', bedTier: bed ? bed.tier || null : null, zone: bed ? bed.zone : null,
       startedAt: s.startedAt, endedAt: s.endedAt, status: s.status,
       dueAt: dueOf(s), extensionCount: s.extensionCount,
@@ -489,6 +582,18 @@
 
   function bedBusy(data, bedId) {
     return data.sessions.some((s) => s.status === 'active' && s.bedId === bedId);
+  }
+
+  // 학생용 태블릿은 보건 선생님 근무 시간에만 등록·연장·퇴실한다
+  function kioskOpen(data) {
+    if (!dutyOf(data).on) fail('OFF_DUTY', '보건 선생님 근무 시간이 아닙니다. 학생지원실에서 해 주세요.');
+  }
+
+  // 학생지원실의 연장·퇴실은 퇴근 10분 전부터 (근무 시간 밖에는 언제나). 보건 조교('assistant')는 막지 않는다.
+  function supportMayAct(data, actor) {
+    if (actor !== 'support') return;
+    const duty = dutyOf(data);
+    if (!duty.supportActs) fail('ON_DUTY', '보건 선생님 근무 중에는 보건실에서 연장·퇴실합니다. ' + hhmm(duty.handoverAt) + '부터 여기서 할 수 있습니다.');
   }
 
   // ── 공개 API ───────────────────────────────────────────────
@@ -520,7 +625,7 @@
       const data = read();
       const acc = data.accounts.find((a) => a.id === String(id || '').trim());
       if (!acc || acc.password !== password) fail('BAD_LOGIN', '아이디 또는 비밀번호가 맞지 않습니다.');
-      return { id: acc.id, role: acc.role, name: acc.name };
+      return { id: acc.id, role: acc.role, name: acc.name, source: acc.source || null };
     },
 
     verifyPassword(roles, password) {
@@ -529,7 +634,18 @@
     },
 
     accounts() {
-      return read().accounts.map((a) => ({ id: a.id, role: a.role, name: a.name }));
+      return read().accounts.map((a) => ({ id: a.id, role: a.role, name: a.name, source: a.source || null }));
+    },
+
+    // 근무 일정
+    duty(ts) { return dutyAt(read().settings.dutySchedule || defaultSchedule(), ts || Date.now()); },
+
+    dutySchedule() { return clone(read().settings.dutySchedule || defaultSchedule()); },
+
+    setDutySchedule(schedule) {
+      const clean = cleanSchedule(schedule);
+      mutate((d) => { d.settings.dutySchedule = clean; });
+      return clean;
     },
 
     setPassword(accountId, password) {
@@ -542,7 +658,7 @@
 
     updateSettings(patch) {
       mutate((d) => {
-        ['extendMinutes', 'maxExtensions', 'alertSound', 'alertSoundSupport'].forEach((k) => { if (k in patch) d.settings[k] = patch[k]; });
+        ['extendMinutes', 'alertSound', 'alertSoundSupport'].forEach((k) => { if (k in patch) d.settings[k] = patch[k]; });
       });
     },
 
@@ -585,9 +701,10 @@
         if (!no || !name || seen.has(no)) return;
         seen.add(no);
         const g = String(r.gender || '').trim();
+        const text = (v) => String(v == null ? '' : v).trim().slice(0, 20) || null;
         clean.push({
           no, name,
-          grade: Number(r.grade) || null, classNo: Number(r.classNo) || null, number: Number(r.number) || null,
+          classNo: text(r.classNo), group: text(r.group),
           gender: /^(남|M|m|male)/.test(g) ? 'M' : /^(여|F|f|female)/.test(g) ? 'F' : null,
           active: true,
         });
@@ -612,7 +729,7 @@
       const full = role !== 'kiosk';
       return {
         no: st.no, name: st.name, displayName: full ? st.name : maskName(st.name),
-        grade: st.grade, classNo: st.classNo, gender: st.gender,
+        classNo: st.classNo || null, group: st.group || null, gender: st.gender,
         active: s ? sessionView(data, s, role === 'kiosk' ? 'nurse' : role) : null,
       };
     },
@@ -622,6 +739,7 @@
       return mutate((d) => {
         const no = normalizeStudentNo(studentNo);
         let st = d.students.find((s) => s.no === no && s.active);
+        if (source === 'kiosk') kioskOpen(d);
         if (!st && !tempName) fail('NOT_FOUND', '학번을 다시 확인해 주세요.');
         if (activeFor(d, no)) fail('ALREADY_ACTIVE', '이미 침대를 사용 중인 학번입니다.');
         const free = d.beds.filter((b) => b.active && !bedBusy(d, b.id));
@@ -645,11 +763,11 @@
     extendSession({ studentNo, code, deviceId }) {
       const dev = deviceId || 'kiosk';
       return mutate((d) => {
+        kioskOpen(d);
         const lock = d.lockouts[dev] || { fails: 0, until: 0 };
         if (lock.until > Date.now()) fail('LOCKED', '잠시 뒤에 다시 해 주세요.', { until: lock.until });
         const s = activeFor(d, normalizeStudentNo(studentNo));
         if (!s) fail('NOT_ACTIVE', '사용 중인 침대가 없습니다.');
-        if (s.extensionCount >= d.settings.maxExtensions) fail('MAX_EXT', '더 연장할 수 없습니다. 보건 선생님께 말해 주세요.');
         if (hashCode(String(code || '')) !== d.settings.extensionCodeHash) {
           lock.fails += 1;
           if (lock.fails >= d.settings.maxCodeTries) {
@@ -672,6 +790,7 @@
     // end_session (학생 태블릿)
     endSession(studentNo) {
       return mutate((d) => {
+        kioskOpen(d);
         const s = activeFor(d, normalizeStudentNo(studentNo));
         if (!s) fail('NOT_ACTIVE', '사용 중인 침대가 없습니다.');
         s.status = 'ended'; s.endedAt = Date.now(); s.endedBy = 'kiosk';
@@ -681,8 +800,10 @@
     },
 
     // nurse_extend / nurse_end / nurse_move / nurse_cancel
+    // 학생지원실의 연장·퇴실은 근무 시간 밖이거나 퇴근 10분 전부터만 된다. 보건 조교는 언제나 된다.
     staffExtend(sessionId, actor) {
       return mutate((d) => {
+        supportMayAct(d, actor);
         const s = d.sessions.find((x) => x.id === sessionId && x.status === 'active');
         if (!s) fail('NOT_ACTIVE', '이미 끝난 사용입니다.');
         s.dueAt = dueOf(s) + d.settings.extendMinutes * MIN;
@@ -693,6 +814,7 @@
 
     staffEnd(sessionId, actor) {
       return mutate((d) => {
+        supportMayAct(d, actor);
         const s = d.sessions.find((x) => x.id === sessionId && x.status === 'active');
         if (!s) fail('NOT_ACTIVE', '이미 끝난 사용입니다.');
         s.status = 'ended'; s.endedAt = Date.now(); s.endedBy = actor;

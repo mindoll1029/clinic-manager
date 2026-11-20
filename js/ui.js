@@ -43,7 +43,10 @@
 
   function overLabel(s) { return s.extensionCount ? '연장 시간 초과' : '사용 시간 초과'; }
 
-  const SOURCE = { nurse: '보건 선생님', kiosk: '보건실 태블릿', support: '학생지원실', admin: '관리자' };
+  // 요일 이름 (근무 일정 설정에서 쓴다)
+  const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
+
+  const SOURCE = { nurse: '보건 선생님', kiosk: '보건실 태블릿', support: '학생지원실', assistant: '보건 조교', admin: '관리자' };
   const ZONE = { M: '남학생', F: '여학생' };
   const ROLE = { admin: '관리자', nurse: '보건 선생님', kiosk: '학생 태블릿', support: '학생지원실' };
 
@@ -75,9 +78,14 @@
     return cells;
   }
 
+  // 반·그룹 표시: "3" → "3반", "A" → "A그룹". 글자로 된 값("3반", "햇살")은 그대로. → "3반 · A그룹"
   function classOf(s) {
-    if (!s || !s.grade) return '';
-    return s.grade + '학년 ' + s.classNo + '반';
+    if (!s) return '';
+    const label = (v, unit) => {
+      const t = String(v == null ? '' : v).trim();
+      return !t ? '' : /^[0-9A-Za-z]+$/.test(t) ? t + unit : t;
+    };
+    return [label(s.classNo, '반'), label(s.group, '그룹')].filter(Boolean).join(' · ');
   }
 
   // ── 알림 (토스트) ───────────────────────────────────────────
@@ -96,6 +104,91 @@
     el.innerHTML = window.icon(kind === 'error' ? 'alert' : 'check') + '<span>' + esc(message) + '</span>';
     region.appendChild(el);
     setTimeout(() => { el.classList.add('is-leaving'); setTimeout(() => el.remove(), 300); }, kind === 'error' ? 5200 : 3200);
+  }
+
+  // ── 사용 시간 초과 알림 (화면 오른쪽 아래 + 윈도우 알림) ─────────
+  // 침대 사용 시간이 지나는 순간 띄운다. 같은 순간에 여러 명이 넘으면 한 알림에 모아서 보여 준다.
+  // items: [{ label: '10번', name: '김민준', due: 시각 }]
+  const OVER_LIST_MAX = 5;
+  function overText(label, name, due) {
+    return label + ' 침대 ' + name + ' 학생의 사용 시간(' + hm(due) + '까지)이 지났습니다';
+  }
+  function overContent(items) {
+    if (items.length === 1) return { title: '사용 시간 초과', lines: [overText(items[0].label, items[0].name, items[0].due)] };
+    const lines = items.slice(0, OVER_LIST_MAX).map((it) => it.label + ' 침대 ' + it.name + ' · ' + hm(it.due) + '까지');
+    if (items.length > OVER_LIST_MAX) lines.push('외 ' + (items.length - OVER_LIST_MAX) + '명');
+    return { title: '사용 시간 초과 · ' + items.length + '명', lines };
+  }
+  function overAlert(items, opts) {
+    const o = opts || {};
+    const c = overContent(items);
+    let region = $('#over-alerts');
+    if (!region) {
+      region = document.createElement('div');
+      region.id = 'over-alerts';
+      region.className = 'over-alerts';
+      region.setAttribute('aria-live', 'assertive');
+      document.body.appendChild(region);
+    }
+    const el = document.createElement('div');
+    el.className = 'over-alert' + (o.preview ? ' is-preview' : '');
+    el.innerHTML = window.icon('clock') +
+      '<div class="over-alert-text">' +
+        (o.preview ? '<em class="over-alert-tag">테스트</em>' : '') +
+        '<b>' + esc(c.title) + '</b>' + c.lines.map((l) => '<span class="over-alert-msg">' + esc(l) + '</span>').join('') +
+        (o.note ? '<small>' + esc(o.note) + '</small>' : '') +
+      '</div>';
+    region.appendChild(el);
+    setTimeout(() => { el.classList.add('is-leaving'); setTimeout(() => el.remove(), 300); }, 6000);
+  }
+
+  // 윈도우(시스템) 알림. 인터넷 주소(https)로 연 화면에서, 이 PC에서 "허용"했을 때만 뜬다.
+  // → 'file'(파일로 열어 쓸 수 없음) | 'unsupported' | 'default'(아직 묻지 않음) | 'granted' | 'denied'
+  function notifyState() {
+    if (location.protocol === 'file:') return 'file';
+    if (!('Notification' in window) || !window.isSecureContext) return 'unsupported';
+    return Notification.permission;
+  }
+  async function askNotify() {
+    try { return await Notification.requestPermission(); } catch (e) { return notifyState(); }
+  }
+  function systemNotify(items, opts) {
+    const o = opts || {};
+    if (notifyState() !== 'granted') return false;
+    const c = overContent(items);
+    try {
+      const n = new Notification((o.preview ? '[테스트] ' : '') + c.title, {
+        body: c.lines.join('\n'),
+        tag: o.tag || 'over-' + Date.now(), // 같은 알림이 여러 탭에서 겹치면 하나로
+        silent: !o.sound, // 알림음이 켜져 있을 때만 윈도우 알림 소리도 낸다
+      });
+      n.onclick = () => { window.focus(); n.close(); };
+      return true;
+    } catch (e) { return false; } // 일부 휴대폰 브라우저는 이 방식의 알림을 지원하지 않는다
+  }
+
+  // 실제 초과 알림: 화면 안 알림은 늘, 윈도우 알림은 이 화면을 보고 있지 않을 때(다른 탭·최소화·다른 프로그램)
+  function alertOver(items, opts) {
+    const o = opts || {};
+    overAlert(items);
+    if (document.hidden || !document.hasFocus()) systemNotify(items, { sound: o.sound, tag: 'over-' + items.map((it) => it.id).join(',') });
+  }
+
+  // "알림음 테스트" 버튼(위쪽 바, 설정): 예시 알림 + 알림음 한 번 + (허용했다면) 윈도우 알림
+  async function previewOverAlert(note) {
+    if (notifyState() === 'default') await askNotify();
+    const bed = (window.Store && Store.beds()[0]) || { label: '1번' };
+    const due = new Date(); due.setMinutes(0, 0, 0);
+    const items = [{ label: bed.label, name: '홍길동', due: due.getTime() }];
+    sound.alert();
+    const st = notifyState();
+    const sent = systemNotify(items, { preview: true, sound: false, tag: 'over-test' });
+    const sys = sent ? '윈도우 알림도 함께 보냈습니다.'
+      : st === 'file' ? '파일로 연 화면이라 윈도우 알림은 뜨지 않습니다. 링크로 열면 받을 수 있습니다.'
+      : st === 'denied' ? '윈도우 알림은 이 브라우저에서 차단되어 있습니다.'
+      : st === 'default' ? '윈도우 알림을 받으려면 "알림 허용"을 눌러 주세요.'
+      : '';
+    overAlert(items, { preview: true, note: [note, sys].filter(Boolean).join(' ') });
   }
 
   // ── 대화상자 ───────────────────────────────────────────────
@@ -227,7 +320,9 @@
   Object.assign(App, {
     esc, $, $$, MIN,
     elapsedParts, elapsedText, elapsedHTML, durationText, hm, dueAt, isOver, overLabel, classOf,
+    WEEKDAY,
     SOURCE, ZONE, ROLE, TIER, bedName, groupBeds, josa,
     toast, dialog, confirmDialog, sound, toCSV, parseCSV, download,
+    overText, overAlert, alertOver, previewOverAlert, notifyState, askNotify,
   });
 })();

@@ -17,7 +17,7 @@
       const avg = done.length ? Math.round(done.reduce((a, r) => a + (r.endedAt - r.startedAt), 0) / done.length / App.MIN) : 0;
       const table = rows.length
         ? '<div class="table-wrap"><table class="table"><thead><tr>' +
-          ['시작', '종료', '침대', '학번', '이름', '학년·반', '사용 시간', '연장', '등록 위치', '상태'].map((h) => '<th scope="col">' + h + '</th>').join('') +
+          ['시작', '종료', '침대', '학번', '이름', '반·그룹', '사용 시간', '연장', '등록 위치', '상태'].map((h) => '<th scope="col">' + h + '</th>').join('') +
           '</tr></thead><tbody>' + rows.map((r) => {
             const end = r.endedAt || now;
             return '<tr class="' + (r.status === 'active' ? (App.isOver(r, now) ? 'is-over' : 'is-active') : r.status === 'cancelled' ? 'is-cancelled' : '') + '">' +
@@ -54,8 +54,8 @@
       const rows = Store.records(day, role);
       const now = Store.now();
       App.download('보건실-침대-기록-' + day + '.csv', App.toCSV([
-        ['날짜', '시작', '종료', '침대', '학번', '이름', '학년', '반', '사용 시간(분)', '연장 횟수', '등록 위치', '상태'],
-        ...rows.map((r) => [day, App.hm(r.startedAt), r.endedAt ? App.hm(r.endedAt) : '', r.bedLabel, r.studentNo, r.name, r.grade || '', r.classNo || '',
+        ['날짜', '시작', '종료', '침대', '학번', '이름', '반', '그룹', '사용 시간(분)', '연장 횟수', '등록 위치', '상태'],
+        ...rows.map((r) => [day, App.hm(r.startedAt), r.endedAt ? App.hm(r.endedAt) : '', r.bedLabel, r.studentNo, r.name, r.classNo || '', r.group || '',
           Math.floor(((r.endedAt || now) - r.startedAt) / App.MIN), r.extensionCount, App.SOURCE[r.source] || r.source,
           r.unreturned ? '미퇴실 종료' : r.status === 'active' && App.isOver(r, now) ? '사용 중(' + App.overLabel(r) + ')' : STATUS[r.status]]),
       ]));
@@ -65,9 +65,79 @@
   }
 
   // ── 설정 ───────────────────────────────────────────────────
+  // 근무 일정: 요일 순서는 월요일부터. 날짜별 변경 폼은 "휴무"가 기본.
+  const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
   function settings(container, role) {
     let beds = Store.beds().map((b) => Object.assign({}, b));
     let dirtyBeds = false;
+    let dayMode = 'off'; // 날짜별 변경: 'off'(휴무) | 'time'(시간 바꾸기)
+
+    // "2026-11-20" → "11월 20일(금)"
+    function dateLabel(key) {
+      const [y, m, d] = key.split('-').map(Number);
+      return m + '월 ' + d + '일(' + App.WEEKDAY[new Date(y, m - 1, d).getDay()] + ')';
+    }
+    // 그 날짜의 요일 근무 시간 (날짜별 변경 폼의 처음 값)
+    function weekTimes(key) {
+      const [y, m, d] = key.split('-').map(Number);
+      return Store.dutySchedule().week[new Date(y, m - 1, d).getDay()];
+    }
+
+    function dutyHTML() {
+      const sched = Store.dutySchedule();
+      const today = Store.dayKey(Date.now());
+      const t = weekTimes(today);
+      const timeOff = dayMode === 'time' ? '' : ' disabled';
+      return '<section class="panel" id="set-duty"><header class="panel-head"><h2>근무 일정</h2>' +
+          '<p class="panel-note">보건 선생님 근무 시간 외에는 학생용 태블릿이 현황만 보여 주고, 등록·연장·퇴실은 학생지원실에서만 가능합니다.</p></header>' +
+        '<form data-form="duty-week"><ul class="duty-week">' +
+          WEEK_ORDER.map((i) => {
+            const w = sched.week[i];
+            const day = App.WEEKDAY[i] + '요일';
+            return '<li class="duty-row' + (w.on ? '' : ' is-off') + '">' +
+              '<label class="duty-day"><input type="checkbox" name="on' + i + '"' + (w.on ? ' checked' : '') + '><span>' + day + '</span></label>' +
+              '<label class="duty-time"><span class="sr">' + day + ' 출근</span><input type="time" name="start' + i + '" value="' + esc(w.start) + '"' + (w.on ? '' : ' disabled') + '></label>' +
+              '<span class="duty-sep" aria-hidden="true">~</span>' +
+              '<label class="duty-time"><span class="sr">' + day + ' 퇴근</span><input type="time" name="end' + i + '" value="' + esc(w.end) + '"' + (w.on ? '' : ' disabled') + '></label>' +
+              '<span class="duty-offword">휴무</span>' +
+            '</li>';
+          }).join('') +
+        '</ul><div class="row-actions"><span class="spacer"></span><button class="btn btn-primary">요일별 근무 시간 저장</button></div></form>' +
+        '<h3 class="sub-head">날짜별 변경</h3>' +
+        '<p class="panel-note">연차, 조퇴의 경우 적어 둡니다.<br>같은 날짜를 다시 등록하면 최근 정보로 바뀌고, 지난 정보는 자동으로 삭제됩니다.</p>' +
+        (sched.days.length
+          ? '<ul class="duty-days">' + sched.days.map((x) => '<li class="duty-special">' +
+              '<b>' + dateLabel(x.date) + (x.date === today ? ' · 오늘' : '') + '</b>' +
+              '<span>' + (x.on ? esc(x.start) + ' ~ ' + esc(x.end) : '휴무') + '</span>' +
+              (x.note ? '<span class="duty-note">' + esc(x.note) + '</span>' : '') +
+              '<span class="spacer"></span>' +
+              '<button type="button" class="icon-btn btn-ghost is-danger" data-duty-del="' + esc(x.date) + '" aria-label="' + dateLabel(x.date) + ' 변경 지우기">' + window.icon('trash') + '</button>' +
+            '</li>').join('') + '</ul>'
+          : '') +
+        '<form class="duty-add" data-form="duty-day">' +
+          '<label class="field"><span>날짜</span><input type="date" name="date" value="' + today + '" min="' + today + '" required></label>' +
+          '<fieldset class="field seg"><legend>근무 형태</legend>' +
+            '<label><input type="radio" name="mode" value="off"' + (dayMode === 'off' ? ' checked' : '') + '><span data-label="휴무">휴무</span></label>' +
+            '<label><input type="radio" name="mode" value="time"' + (dayMode === 'time' ? ' checked' : '') + '><span data-label="시간 바꾸기">시간 바꾸기</span></label></fieldset>' +
+          '<label class="field"><span>출근</span><input type="time" name="start" value="' + esc(t.start) + '"' + timeOff + '></label>' +
+          '<label class="field"><span>퇴근</span><input type="time" name="end" value="' + esc(t.end) + '"' + timeOff + '></label>' +
+          '<label class="field duty-note-field"><span>메모 (적지 않아도 됩니다)</span><input name="note" maxlength="20" placeholder="연차, 조퇴"></label>' +
+          '<button class="btn btn-ghost">' + window.icon('plus') + '<span>추가</span></button>' +
+        '</form>' +
+      '</section>';
+    }
+
+    // 근무 일정 패널만 다시 그린다 (다른 설정 폼에 적던 내용은 그대로 둔다)
+    function drawDuty() {
+      const old = container.querySelector('#set-duty');
+      if (old) old.outerHTML = dutyHTML();
+    }
+
+    function saveDuty(next, message) {
+      try { Store.setDutySchedule(next); App.toast(message); drawDuty(); return true; }
+      catch (err) { App.sound.error(); App.toast(err.message, 'error'); return false; }
+    }
 
     function bedRows() {
       return beds.map((b, i) =>
@@ -87,7 +157,8 @@
       const opt = (vals, cur, unit) => vals.map((v) => '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + v + unit + '</option>').join('');
       container.innerHTML =
         '<div class="settings">' +
-        '<section class="panel" id="set-beds"><header class="panel-head"><h2>침대</h2><p class="panel-note">실제 보건실 배치와 같은 순서로 놓습니다. 구역별로 화면 왼쪽(남학생)과 오른쪽(여학생)에 나뉩니다. 2층 침대는 아래층과 위층을 나란히 두면 한 칸으로 묶여 보입니다.</p></header>' +
+        dutyHTML() +
+        '<section class="panel" id="set-beds"><header class="panel-head"><h2>침대</h2><p class="panel-note">보건실 배치 순서를 변경할 수 있습니다.</p></header>' +
           '<ol class="bed-list">' + bedRows() + '</ol>' +
           '<div class="row-actions"><button type="button" class="btn btn-ghost" data-bed-act="add-M">' + window.icon('plus') + '<span>남학생 침대 추가</span></button>' +
           '<button type="button" class="btn btn-ghost" data-bed-act="add-F">' + window.icon('plus') + '<span>여학생 침대 추가</span></button>' +
@@ -97,12 +168,12 @@
           '<form class="form-grid" data-form="time">' +
             '<label class="field"><span>사용 시간</span><input value="등록 후 다음 정각까지 (고정)" disabled></label>' +
             '<label class="field"><span>연장 1회 시간</span><select name="extendMinutes">' + opt([30, 60], st.extendMinutes, '분') + '</select></label>' +
-            '<label class="field"><span>최대 연장 횟수</span><select name="maxExtensions">' + opt([1, 2, 3, 4, 5], st.maxExtensions, '회') + '</select></label>' +
             '<label class="field check"><input type="checkbox" name="alertSound"' + (st.alertSound ? ' checked' : '') + '><span>사용 시간이 지나면 보건 선생님 화면에서 알림음 울리기</span></label>' +
             (role === 'admin' ? '<label class="field check"><input type="checkbox" name="alertSoundSupport"' + (st.alertSoundSupport ? ' checked' : '') + '><span>사용 시간이 지나면 학생지원실 화면에서 알림음 울리기</span></label>' : '') +
-            '<div class="row-actions"><span class="spacer"></span><button class="btn btn-primary">저장</button></div>' +
+            '<div class="row-actions"><button type="button" class="btn btn-ghost" data-preview-alert>' + window.icon('volume') + '<span>알림음 테스트</span></button>' +
+              '<span class="spacer"></span><button class="btn btn-primary">저장</button></div>' +
           '</form></section>' +
-        '<section class="panel"><header class="panel-head"><h2>관리번호</h2><p class="panel-note">학생이 태블릿에서 연장할 때 입력하는 4자리 숫자입니다. 저장한 번호는 다시 볼 수 없습니다.</p></header>' +
+        '<section class="panel"><header class="panel-head"><h2>관리번호</h2><p class="panel-note">학생이 태블릿에서 연장할 때 입력하는 4자리 숫자입니다.</p></header>' +
           '<form class="form-grid" data-form="code">' +
             '<label class="field"><span>새 관리번호</span><input name="code" type="password" inputmode="numeric" pattern="\\d{4}" maxlength="4" autocomplete="new-password" required></label>' +
             '<label class="field"><span>한 번 더</span><input name="code2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" required></label>' +
@@ -140,7 +211,33 @@
         container.querySelector('[data-bed-act=save]').disabled = false;
       }
     });
+    // 근무 일정 입력: 요일을 끄면 시각 칸을 숨기고, 날짜별 변경은 "시간 바꾸기"일 때만 시각을 받는다
+    container.addEventListener('change', (e) => {
+      const t = e.target;
+      if (!t.closest('#set-duty')) return;
+      const dutyRow = t.closest('.duty-row');
+      if (dutyRow && t.type === 'checkbox') {
+        dutyRow.classList.toggle('is-off', !t.checked);
+        dutyRow.querySelectorAll('input[type=time]').forEach((x) => { x.disabled = !t.checked; });
+      } else if (t.name === 'mode') {
+        dayMode = t.value;
+        t.form.elements.start.disabled = t.form.elements.end.disabled = dayMode !== 'time';
+      } else if (t.name === 'date' && t.value) {
+        const w = weekTimes(t.value);
+        t.form.elements.start.value = w.start;
+        t.form.elements.end.value = w.end;
+      }
+    });
     container.addEventListener('click', async (e) => {
+      if (e.target.closest('[data-preview-alert]')) { App.previewOverAlert('사용 시간이 지나면 이렇게 알립니다. 실제 알림 때 알림음은 위 체크 상자가 켜져 있을 때만 울립니다.'); return; } // 윈도우 알림 허용도 여기서 물어본다
+      const del = e.target.closest('[data-duty-del]');
+      if (del) {
+        const date = del.dataset.dutyDel;
+        const s = Store.dutySchedule();
+        s.days = s.days.filter((x) => x.date !== date);
+        saveDuty(s, dateLabel(date) + ' 변경을 지웠습니다');
+        return;
+      }
       const b = e.target.closest('[data-bed-act]');
       if (b) {
         const act = b.dataset.bedAct;
@@ -190,7 +287,7 @@
       if (!f) return;
       e.preventDefault();
       if (f.dataset.form === 'time') {
-        const patch = { extendMinutes: Number(f.extendMinutes.value), maxExtensions: Number(f.maxExtensions.value), alertSound: f.alertSound.checked };
+        const patch = { extendMinutes: Number(f.extendMinutes.value), alertSound: f.alertSound.checked };
         if (f.alertSoundSupport) patch.alertSoundSupport = f.alertSoundSupport.checked;
         Store.updateSettings(patch);
         App.toast('사용 시간과 연장 설정을 저장했습니다');
@@ -198,6 +295,20 @@
         if (f.code.value !== f.code2.value) { App.toast('두 번 입력한 관리번호가 다릅니다.', 'error'); return; }
         try { Store.setExtensionCode(f.code.value); f.reset(); App.toast('관리번호를 바꿨습니다'); }
         catch (err) { App.toast(err.message, 'error'); }
+      } else if (f.dataset.form === 'duty-week') {
+        const el = f.elements;
+        const s = Store.dutySchedule();
+        s.week = s.week.map((w, i) => ({ on: el['on' + i].checked, start: el['start' + i].value, end: el['end' + i].value }));
+        saveDuty(s, '요일별 근무 시간을 저장했습니다');
+      } else if (f.dataset.form === 'duty-day') {
+        const el = f.elements;
+        const date = el.date.value;
+        if (!date) { App.toast('날짜를 골라 주세요.', 'error'); return; }
+        const s = Store.dutySchedule();
+        const had = s.days.some((x) => x.date === date);
+        s.days = s.days.filter((x) => x.date !== date)
+          .concat([{ date, on: dayMode === 'time', start: el.start.value, end: el.end.value, note: el.note.value }]);
+        saveDuty(s, dateLabel(date) + (had ? ' 일정을 바꿨습니다' : ' 일정을 추가했습니다'));
       }
     });
     draw();
@@ -205,7 +316,8 @@
   }
 
   // ── 학생 명단 ──────────────────────────────────────────────
-  const HEAD = { no: /^(학번|학생번호|id)$/i, name: /^(이름|성명|name)$/i, grade: /^학년$/, classNo: /^반$/, number: /^(번호|출석번호)$/, gender: /^(성별|gender)$/i };
+  // 명단 열: 반, 그룹, 이름, 학번, 성별 (첫 줄에 열 이름이 없으면 이 순서로 읽는다)
+  const HEAD = { classNo: /^반$/, group: /^(그룹|group)$/i, name: /^(이름|성명|name)$/i, no: /^(학번|학생번호|id)$/i, gender: /^(성별|gender)$/i };
 
   function rowsToStudents(table) {
     if (!table.length) return [];
@@ -213,7 +325,7 @@
     const idx = {};
     Object.keys(HEAD).forEach((k) => { const i = head.findIndex((h) => HEAD[k].test(h)); if (i >= 0) idx[k] = i; });
     const hasHead = 'no' in idx && 'name' in idx;
-    const order = hasHead ? idx : { no: 0, name: 1, grade: 2, classNo: 3, number: 4, gender: 5 };
+    const order = hasHead ? idx : { classNo: 0, group: 1, name: 2, no: 3, gender: 4 };
     return table.slice(hasHead ? 1 : 0).map((r) => {
       const o = {};
       Object.keys(order).forEach((k) => { o[k] = r[order[k]]; });
@@ -228,39 +340,52 @@
 
   function roster(container) {
     let query = '';
-    function draw() {
-      const st = Store.settings();
+    // 검색할 때는 표의 줄만 다시 그린다. 검색칸까지 다시 만들면 한글 입력(조합 중인 글자)이 끊겨 자음·모음이 풀어진다.
+    function sumHTML() {
       const list = Store.students();
       const m = list.filter((s) => s.gender === 'M').length, f = list.filter((s) => s.gender === 'F').length;
-      const shown = list.filter((s) => !query || s.no.includes(query) || s.name.includes(query)).slice(0, 200);
+      return '전체 <b>' + list.length + '</b>명 <span class="dot">·</span> 남 ' + m + ' <span class="dot">·</span> 여 ' + f;
+    }
+    function rowsHTML() {
+      const shown = Store.students().filter((s) => !query || s.no.includes(query) || s.name.includes(query)).slice(0, 200);
+      return shown.map((s) => '<tr><td>' + esc(s.classNo || '') + '</td><td>' + esc(s.group || '') + '</td><td>' + esc(s.name) + '</td><td class="num">' + esc(s.no) + '</td><td>' + (s.gender === 'M' ? '남' : s.gender === 'F' ? '여' : '–') + '</td></tr>').join('');
+    }
+    function drawList() {
+      const sum = container.querySelector('[data-roster-sum]');
+      const body = container.querySelector('[data-roster-rows]');
+      if (sum) sum.innerHTML = sumHTML();
+      if (body) body.innerHTML = rowsHTML();
+    }
+    function draw() {
+      const st = Store.settings();
       container.innerHTML =
         '<div class="roster">' +
-        '<section class="panel"><header class="panel-head"><h2>명단 바꾸기</h2><p class="panel-note">구글 스프레드시트에서 불러옵니다. 한 번 불러온 링크는 기억해 두었다가 다음에는 바로 다시 불러옵니다. 열 이름: 학번, 이름, 학년, 반, 번호, 성별.</p></header>' +
+        '<section class="panel"><header class="panel-head"><h2>명단 바꾸기</h2><p class="panel-note">구글 스프레드시트에서 불러옵니다. 한 번 불러온 링크는 기억해 두었다가 다음에는 바로 다시 불러옵니다. 열 이름: 반, 그룹, 이름, 학번, 성별.</p></header>' +
           '<div class="import">' +
             '<form class="field-stack" data-form="sheet"><label class="field"><span>구글 스프레드시트 링크</span><input name="url" type="url" value="' + esc(st.rosterSheetUrl || '') + '" placeholder="파일 → 공유 → 웹에 게시 → CSV 링크"></label>' +
               '<button class="btn btn-primary">' + window.icon(st.rosterSheetUrl ? 'refresh' : 'download') + '<span>' + (st.rosterSheetUrl ? '다시 불러오기' : '불러오기') + '</span></button>' +
               (st.rosterLoadedAt ? '<p class="panel-note">마지막으로 불러온 시각 ' + loadedAt(st.rosterLoadedAt) + '</p>' : '') + '</form>' +
-            '<label class="drop"><input type="file" name="file" accept=".csv,.tsv,.txt,.xlsx,.xls">' + window.icon('upload') + '<b>엑셀·CSV 파일 고르기</b><small>.xlsx .csv .tsv</small></label>' +
+            // 다른 두 칸처럼 제목을 위에 두어 세 칸의 상자 윗선을 맞춘다
+            '<div class="field"><span>파일 올리기</span>' +
+              '<label class="drop"><input type="file" name="file" accept=".csv,.tsv,.txt,.xlsx,.xls">' + window.icon('upload') + '<b>엑셀·CSV 파일 고르기</b><small>.xlsx .csv .tsv</small></label></div>' +
             '<form class="field-stack" data-form="paste"><label class="field"><span>붙여 넣기</span><textarea name="text" rows="4" placeholder="스프레드시트에서 복사해 붙여 넣기"></textarea></label><button class="btn btn-ghost">읽기</button></form>' +
           '</div>' +
           '<div class="row-actions"><button type="button" class="btn btn-quiet" data-template>' + window.icon('download') + '<span>빈 양식 받기</span></button></div>' +
         '</section>' +
-        '<section class="panel"><header class="panel-head"><h2>지금 명단</h2><p class="panel-sum">전체 <b>' + list.length + '</b>명 <span class="dot">·</span> 남 ' + m + ' <span class="dot">·</span> 여 ' + f + '</p>' +
+        '<section class="panel"><header class="panel-head"><h2>지금 명단</h2><p class="panel-sum" data-roster-sum>' + sumHTML() + '</p>' +
           '<div class="panel-tools"><label class="field-inline"><span class="sr">검색</span><input type="search" name="q" placeholder="학번·이름 검색" value="' + esc(query) + '"></label></div></header>' +
-          '<div class="table-wrap"><table class="table"><thead><tr><th scope="col">학번</th><th scope="col">이름</th><th scope="col">학년</th><th scope="col">반</th><th scope="col">번호</th><th scope="col">성별</th></tr></thead><tbody>' +
-          shown.map((s) => '<tr><td class="num">' + esc(s.no) + '</td><td>' + esc(s.name) + '</td><td class="num">' + (s.grade || '') + '</td><td class="num">' + (s.classNo || '') + '</td><td class="num">' + (s.number || '') + '</td><td>' + (s.gender === 'M' ? '남' : s.gender === 'F' ? '여' : '–') + '</td></tr>').join('') +
-          '</tbody></table></div>' +
+          '<div class="table-wrap"><table class="table"><thead><tr><th scope="col">반</th><th scope="col">그룹</th><th scope="col">이름</th><th scope="col">학번</th><th scope="col">성별</th></tr></thead><tbody data-roster-rows>' + rowsHTML() + '</tbody></table></div>' +
         '</section></div>';
     }
 
     async function apply(students, from, meta) {
       if (!students.length) { App.toast('읽을 수 있는 학생이 없습니다. 학번과 이름 열을 확인해 주세요.', 'error'); return; }
-      const preview = students.slice(0, 5).map((s) => '<tr><td class="num">' + esc(s.no) + '</td><td>' + esc(s.name) + '</td><td>' + esc(s.grade || '') + '</td><td>' + esc(s.classNo || '') + '</td><td>' + esc(s.gender || '') + '</td></tr>').join('');
+      const preview = students.slice(0, 5).map((s) => '<tr><td>' + esc(s.classNo || '') + '</td><td>' + esc(s.group || '') + '</td><td>' + esc(s.name || '') + '</td><td class="num">' + esc(s.no || '') + '</td><td>' + esc(s.gender || '') + '</td></tr>').join('');
       const ok = await App.dialog({
         title: '명단 바꾸기',
         wide: true,
         body: '<p class="sheet-text">' + esc(from) + '에서 <b>' + students.length + '명</b>을 읽었습니다. 지금 명단을 이 명단으로 바꿀까요? 사용 중인 침대와 기록은 그대로 남습니다.</p>' +
-          '<div class="table-wrap"><table class="table"><thead><tr><th>학번</th><th>이름</th><th>학년</th><th>반</th><th>성별</th></tr></thead><tbody>' + preview + '</tbody></table></div>' +
+          '<div class="table-wrap"><table class="table"><thead><tr><th>반</th><th>그룹</th><th>이름</th><th>학번</th><th>성별</th></tr></thead><tbody>' + preview + '</tbody></table></div>' +
           (students.length > 5 ? '<p class="panel-note">처음 5명만 보여 줍니다.</p>' : ''),
         actions: [{ label: '취소', value: '__cancel' }, { label: students.length + '명으로 바꾸기', value: 'yes', kind: 'primary' }],
       });
@@ -288,10 +413,7 @@
     container.addEventListener('input', (e) => {
       if (e.target.name !== 'q') return;
       query = e.target.value.trim();
-      const pos = e.target.selectionStart;
-      draw();
-      const q = container.querySelector('[name=q]');
-      q.focus(); q.setSelectionRange(pos, pos);
+      drawList(); // 검색칸은 그대로 두고 표만 바꾼다
     });
     container.addEventListener('submit', async (e) => {
       const f = e.target.closest('form[data-form]');
@@ -312,10 +434,17 @@
       }
     });
     container.addEventListener('click', (e) => {
-      if (e.target.closest('[data-template]')) App.download('학생명단-양식.csv', App.toCSV([['학번', '이름', '학년', '반', '번호', '성별'], ['1001', '홍길동', '1', '1', '1', '남']]));
+      if (e.target.closest('[data-template]')) App.download('학생명단-양식.csv', App.toCSV([['반', '그룹', '이름', '학번', '성별'], ['1', 'A', '홍길동', '1001', '남']]));
     });
     draw();
-    return { refresh: draw };
+    // 다른 기기에서 바뀐 내용이 들어올 때: 검색·링크·붙여 넣기 칸에 입력 중이면 그 칸은 건드리지 않고 표만 바꾼다
+    return {
+      refresh() {
+        const a = document.activeElement;
+        if (a && container.contains(a) && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) drawList();
+        else draw();
+      },
+    };
   }
 
   Object.assign(App, { viewRecords: records, viewSettings: settings, viewRoster: roster });

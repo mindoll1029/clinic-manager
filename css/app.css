@@ -149,7 +149,7 @@ a { color: inherit; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
 .brand-text b { font-size: var(--fs-md); font-weight: 800; letter-spacing: -0.01em; }
 .brand-text small { font-size: var(--fs-sm); color: var(--frame-ink-2); }
-.free { display: flex; align-items: baseline; gap: 6px; padding-left: 18px; border-left: var(--line) solid var(--frame-line); color: var(--frame-ink-2); white-space: nowrap; }
+.free { display: flex; align-items: center; gap: 6px; padding-left: 18px; border-left: var(--line) solid var(--frame-line); color: var(--frame-ink-2); white-space: nowrap; } /* 글자와 큰 숫자를 위아래 가운데로 맞춘다 (태블릿과 같음) */
 .free b { font-size: 40px; line-height: 1; font-weight: 800; color: var(--magnet); }
 .free .of { font-size: var(--fs-md); color: var(--frame-ink); }
 .free .split { margin-left: 6px; font-size: var(--fs-sm); }
@@ -178,11 +178,17 @@ a { color: inherit; }
 .tab[aria-selected="true"] { background: var(--magnet); color: var(--magnet-ink); font-weight: 800; }
 .tb-right .icon-btn { color: var(--frame-ink); border-color: var(--frame-line); }
 .tb-right .icon-btn[aria-pressed="false"] { color: var(--frame-ink-2); }
-.account { display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 14px; border: var(--line) solid var(--frame-line); border-radius: var(--radius); background: transparent; color: var(--frame-ink); font-size: var(--fs-sm); }
-.account:hover { background: var(--frame-2); }
+.account, .tb-btn { display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 14px; border: var(--line) solid var(--frame-line); border-radius: var(--radius); background: transparent; color: var(--frame-ink); font-size: var(--fs-sm); }
+.account:hover, .tb-btn:hover { background: var(--frame-2); }
 
 /* ── 보드 바탕 ────────────────────────────────────────────── */
 .workspace { flex: 1; display: flex; padding: 0 16px 16px; min-height: 0; }
+/* 윈도우 알림 안내 띠 (위쪽 바 아래) */
+.notify-bar { display: flex; align-items: center; gap: 12px; margin: 0 16px 12px; padding: 8px 8px 8px 16px; border-radius: 12px; background: var(--paper); color: var(--ink); font-size: var(--fs-sm); }
+.notify-bar[hidden] { display: none; }
+.notify-bar > .ico { flex: none; width: 22px; height: 22px; color: var(--ink-2); }
+.notify-bar > span { flex: 1; min-width: 0; }
+.notify-bar .icon-btn { flex: none; width: 40px; height: 40px; color: var(--ink-2); }
 .view {
   flex: 1; min-width: 0; min-height: 0; overflow: auto;
   background: var(--board); border-radius: var(--radius-lg);
@@ -203,13 +209,17 @@ a { color: inherit; }
 /* 칸들이 구역 높이를 나눠 갖는다. 큰 화면에서는 보드를 채우고, 작은 화면에서는 내용만큼 늘어난다 */
 .slots { flex: 1; display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); grid-auto-rows: auto; align-content: stretch; gap: 16px; }
 
-.slot { position: relative; display: flex; min-width: 0; min-height: 0; padding: 8px; border: var(--line) solid var(--rule); border-radius: 14px; }
+/* 칸 너비에 맞춰 큰 숫자(침대 번호·경과 시간)와 이름이 줄어든다 (cqw = 칸 안쪽 너비의 1%). 칸이 넉넉하면 원래 크기 */
+.slot { position: relative; display: flex; min-width: 0; min-height: 0; padding: 8px; border: var(--line) solid var(--rule); border-radius: 14px; container-type: inline-size; }
 .slot-no {
   position: absolute; top: 6px; right: 14px; z-index: 0;
-  font-size: 64px; font-weight: 900; line-height: 1; letter-spacing: -0.04em; color: var(--slot-no); pointer-events: none;
+  font-size: min(64px, 28cqw); font-weight: 900; line-height: 1; letter-spacing: -0.04em; color: var(--slot-no); pointer-events: none;
 }
 .slot.is-empty { flex-direction: column; align-items: center; justify-content: center; gap: 12px; border: var(--line) dashed var(--rule-strong); }
 .slot.is-empty .slot-no { color: var(--slot-no); }
+/* 빈 침대 칸은 큰 번호·"비어 있음"·"여기에 등록"이 겹치거나 칸 밖으로 나가지 않을 높이를 둔다.
+   (번호와 "여기에 등록"은 칸 위에 얹혀 있어서 칸 높이를 늘리지 않는다. 침대가 모두 비어 화면이 좁을 때 칸이 48px까지 납작해졌다) */
+.slot.is-empty:not(.is-tier) { min-height: 176px; }
 .slot-empty { position: relative; z-index: 1; color: var(--ink-2); font-size: var(--fs-md); font-weight: 600; display: flex; flex-direction: column; align-items: center; }
 .slot-tier { font-size: var(--fs); color: var(--ink-3); font-weight: 600; }
 /* "여기에 등록": 가운데 정렬을 transform 없이 해서 누를 때 옆으로 밀리지 않게 하고, 나타나고 사라질 때 움직임도 없앤다 */
@@ -233,7 +243,7 @@ a { color: inherit; }
 .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: var(--fs); font-weight: 700; white-space: nowrap; }
 .chip-ext { background: var(--frame); color: var(--magnet); }
 .chip-over { background: var(--over); color: var(--over-ink); }
-.tag-name { margin-top: 4px; font-size: 30px; font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.tag-name { margin-top: 4px; font-size: min(30px, 13cqw); font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; overflow-wrap: anywhere; }
 /* 관리자 현황판: 등록 시각을 눌러 고친다 */
 .time-edit { display: inline-flex; align-items: center; gap: 3px; min-height: 30px; margin: -4px 0; padding: 0 6px; border: 0; border-radius: 6px; background: var(--magnet-press); color: var(--magnet-ink); font: inherit; cursor: pointer; vertical-align: baseline; }
 .time-edit .ico { width: 0.9em; height: 0.9em; }
@@ -245,7 +255,7 @@ a { color: inherit; }
 .tag-meta { margin-top: 4px; font-size: var(--fs); color: var(--magnet-ink-2); line-height: 1.4; }
 .tag-meta .dot { color: var(--magnet-edge); }
 .tag-alert { display: inline-flex; align-self: flex-start; align-items: center; gap: 6px; margin-top: 10px; padding: 4px 12px 4px 8px; border-radius: 999px; background: var(--over-ink); color: var(--over); font-weight: 800; font-size: var(--fs); }
-.tag-time { margin-top: auto; padding-top: 8px; font-size: clamp(40px, 3.4vw, 56px); font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+.tag-time { margin-top: auto; padding-top: 8px; font-size: min(clamp(40px, 3.4vw, 56px), 19cqw); white-space: nowrap; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
 .tag-time .unit { font-size: 0.42em; font-weight: 700; margin: 0 0.12em 0 0.06em; letter-spacing: 0; }
 .tag-left { margin-top: 6px; font-size: var(--fs); color: var(--magnet-ink-2); }
 .tag-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
@@ -272,7 +282,7 @@ a { color: inherit; }
 .bunk-label { display: inline-flex; align-items: center; gap: 6px; padding: 0 6px; font-size: var(--fs); font-weight: 700; color: var(--ink-2); }
 .bunk-label .ico { width: 20px; height: 20px; }
 .slot.is-tier { border-radius: 12px; }
-.slot.is-tier .slot-no { font-size: 44px; top: 4px; right: 10px; }
+.slot.is-tier .slot-no { font-size: min(44px, 20cqw); top: 4px; right: 10px; }
 /* 2층 침대 이름표는 줄을 아낀다: 번호·연장 한 줄, 이름(학번)과 시간이 한 줄, 초과 표시는 따로 한 줄, 정보는 줄바꿈 */
 .slot.is-tier .tag {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px;
@@ -281,10 +291,10 @@ a { color: inherit; }
 }
 .slot.is-tier .tag-top { grid-area: top; min-height: 0; }
 .slot.is-tier .chip { padding: 0 10px; }
-.slot.is-tier .tag-name { grid-area: name; align-self: center; margin-top: 0; font-size: var(--fs-lg); }
+.slot.is-tier .tag-name { grid-area: name; align-self: center; margin-top: 0; font-size: min(var(--fs-lg), 11cqw); }
 .slot.is-tier .tag-no { margin-left: 8px; font-size: var(--fs-sm); }
 .slot.is-tier .tag-meta { grid-area: meta; margin-top: 2px; }
-.slot.is-tier .tag-time { grid-area: time; align-self: center; margin: 0; padding: 0; font-size: 36px; }
+.slot.is-tier .tag-time { grid-area: time; align-self: center; margin: 0; padding: 0; font-size: min(36px, 15cqw); }
 .slot.is-tier .tag-left { display: none; }
 .slot.is-tier .tag-alert { grid-area: alert; margin: 6px 0 2px; padding: 2px 12px 2px 8px; }
 .slot.is-tier .tag-actions { grid-area: actions; margin-top: 8px; }
@@ -314,6 +324,9 @@ a { color: inherit; }
 .panel-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin-bottom: 18px; }
 .panel-head h2 { font-size: var(--fs-lg); font-weight: 800; }
 .panel-note { flex-basis: 100%; color: var(--ink-2); font-size: var(--fs-sm); max-width: 70ch; }
+/* 패널 설명은 화면이 넓어도 제목 옆이 아니라 늘 제목 아래에.
+   글 폭은 70ch로 두고, 남는 폭을 오른쪽 여백으로 채워 한 줄을 혼자 차지하게 한다 */
+.panel-head .panel-note { margin-right: max(0px, 100% - 70ch); }
 .panel-tools { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .panel-sum { margin-bottom: 16px; color: var(--ink-2); }
 .panel-head .panel-sum { margin: 0; }
@@ -323,13 +336,13 @@ a { color: inherit; }
 
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field > span, .field legend { font-size: var(--fs-sm); font-weight: 700; color: var(--ink-2); }
-.field input, .field select, .field textarea, .field-inline input, .bed-row input, .bed-row select {
+.field input, .field select, .field textarea, .field-inline input, .bed-row input, .bed-row select, .duty-time input {
   min-height: 48px; padding: 0 14px; border: var(--line) solid var(--rule-strong); border-radius: var(--radius);
   background: var(--paper); color: var(--ink); font-size: var(--fs);
 }
 .field textarea { padding: 12px 14px; resize: vertical; line-height: 1.5; }
 .field input:disabled { background: var(--board); color: var(--ink-2); }
-.field input:focus, .field select:focus, .field textarea:focus, .field-inline input:focus, .bed-row input:focus, .bed-row select:focus { outline: 3px solid var(--focus); outline-offset: 0; border-color: var(--focus); }
+.field input:focus, .field select:focus, .field textarea:focus, .field-inline input:focus, .bed-row input:focus, .bed-row select:focus, .duty-time input:focus { outline: 3px solid var(--focus); outline-offset: 0; border-color: var(--focus); }
 .field.check { flex-direction: row; align-items: center; gap: 12px; grid-column: 1 / -1; }
 .field.check input { width: 24px; height: 24px; min-height: 0; accent-color: var(--frame); }
 .field.check span { font-weight: 500; color: var(--ink); font-size: var(--fs); }
@@ -340,11 +353,42 @@ a { color: inherit; }
 .field-stack .btn { align-self: flex-start; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px 20px; }
 .form-grid .row-actions { grid-column: 1 / -1; margin-top: 0; }
+
+/* 근무 일정: 요일마다 한 줄 [요일 체크] [출근] ~ [퇴근], 날짜별 변경 목록과 추가 폼 */
+.duty-week { max-width: 640px; }
+.duty-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 8px 0; }
+.duty-row + .duty-row { border-top: var(--line) solid var(--rule); }
+.duty-day { display: inline-flex; align-items: center; gap: 12px; min-width: 128px; min-height: 48px; font-weight: 700; cursor: pointer; }
+.duty-day input { width: 24px; height: 24px; margin: 0; accent-color: var(--frame); }
+.duty-sep { color: var(--ink-2); }
+.duty-offword { color: var(--ink-3); }
+.duty-row.is-off .duty-time, .duty-row.is-off .duty-sep, .duty-row:not(.is-off) .duty-offword { display: none; }
+.sub-head { margin-top: 28px; padding-top: 22px; border-top: var(--line) solid var(--rule); font-size: var(--fs-md); font-weight: 800; }
+.sub-head + .panel-note { margin-top: 6px; }
+.duty-days { display: grid; gap: 8px; max-width: 760px; margin-top: 14px; }
+.duty-special { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 64px; padding: 8px 8px 8px 16px; border: var(--line) solid var(--rule); border-radius: 12px; }
+.duty-special b { font-weight: 800; }
+.duty-note { color: var(--ink-2); }
+.duty-add { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 16px; margin-top: 16px; }
+/* 근무 형태 두 칸은 같은 너비로 (고른 쪽이 굵어져도 칸 크기가 그대로) */
+.duty-add .seg { display: grid; grid-template-columns: 1fr 1fr; }
+/* 날짜·출근·퇴근 칸은 크기를 고정한다 ("시간 바꾸기"로 켜져 시계 아이콘이 생기거나 날짜가 바뀌어도 칸이 늘지 않게) */
+.duty-add input[type="date"] { width: 180px; height: 48px; }
+.duty-add input[type="time"] { width: 160px; height: 48px; }
+.duty-note-field { flex: 1 1 160px; max-width: 200px; }
 .seg { border: 0; padding: 0; flex-direction: row; flex-wrap: wrap; gap: 8px; }
 .seg legend { width: 100%; margin-bottom: 6px; }
 .seg label { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 16px; border: var(--line) solid var(--rule-strong); border-radius: var(--radius); cursor: pointer; }
 .seg label:has(input:checked) { background: var(--magnet); border-color: var(--magnet-edge); font-weight: 700; }
-.seg input { accent-color: var(--frame); }
+/* 라디오 단추에는 입력칸 모양(.field input)을 쓰지 않는다. 키보드 초점 표시는 칸 전체에 */
+.seg input { accent-color: var(--frame); flex: none; width: 18px; height: 18px; min-height: 0; margin: 0; padding: 0; }
+.seg input:focus, .seg input:focus-visible { outline: none; }
+.seg label:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* 보통 글자와 굵은 글자 중 넓은 쪽 너비를 미리 잡아 둔다 (고를 때 칸 크기가 그대로) */
+.seg span[data-label] { display: inline-flex; flex-direction: column; }
+.seg span[data-label]::before, .seg span[data-label]::after { content: attr(data-label); height: 0; overflow: hidden; visibility: hidden; }
+.seg span[data-label]::before { font-weight: 400; }
+.seg span[data-label]::after { font-weight: 700; }
 
 .bed-list { display: flex; flex-direction: column; border-top: var(--line) solid var(--rule); }
 .bed-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: var(--line) solid var(--rule); }
@@ -446,6 +490,17 @@ a { color: inherit; }
 .toast.is-error .ico { color: var(--over-ink); }
 .toast.is-leaving { opacity: 0; transform: translateY(6px); transition: 0.25s; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(10px); } }
+/* 사용 시간 초과 알림: 화면 오른쪽 아래 (미리보기도 같은 자리·같은 모양) */
+.over-alerts { position: fixed; right: 24px; bottom: 24px; z-index: 101; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; width: min(440px, calc(100vw - 32px)); pointer-events: none; }
+.over-alert { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 16px 18px; border-radius: 14px; background: var(--over); color: var(--over-ink); box-shadow: 0 18px 36px -14px var(--shadow-float); animation: over-in 0.3s var(--ease); }
+.over-alert .ico { flex: none; width: 28px; height: 28px; margin-top: 2px; }
+.over-alert-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.over-alert-text b { font-size: var(--fs-md); font-weight: 800; }
+.over-alert-msg { font-weight: 600; }
+.over-alert-text small { margin-top: 6px; font-size: var(--fs-sm); color: var(--over-ink-2); }
+.over-alert-tag { margin-bottom: 4px; padding: 0 10px; border-radius: 999px; background: var(--over-ink); color: var(--over); font-size: var(--fs-sm); font-style: normal; font-weight: 800; }
+.over-alert.is-leaving { opacity: 0; transform: translateX(12px); transition: 0.25s; }
+@keyframes over-in { from { opacity: 0; transform: translateX(24px); } }
 
 /* ── 로그인 ───────────────────────────────────────────────── */
 .login { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; }
@@ -508,7 +563,18 @@ body[data-screen="kiosk"] { overflow: hidden; }
 .key-ok:active { background: var(--frame-deep); color: var(--magnet); }
 .kiosk.is-locked .keypad { opacity: 0.4; pointer-events: none; }
 
-.k-stage[data-step="pick"] { padding: 28px 36px 24px; }
+.k-stage[data-step="pick"], .k-stage[data-step="off"] { padding: 28px 36px 24px; }
+
+/* 근무 시간 밖: 안내 띠 + 고를 수 없는 현황판 */
+.k-off-head { display: flex; align-items: center; gap: 24px; padding: 18px 24px; border: var(--line) solid var(--rule); border-radius: 18px; background: var(--paper); text-align: left; }
+.k-off-head.is-nudge { animation: nudge 0.42s var(--ease) 2; background: var(--magnet-tint); border-color: var(--magnet-edge); }
+@keyframes nudge { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-10px); } 70% { transform: translateX(10px); } }
+.k-off-mark { display: grid; place-items: center; flex: none; width: 88px; height: 88px; border-radius: 22px; background: var(--frame); color: var(--magnet); }
+.k-off-mark .ico { width: 52px; height: 52px; }
+.k-off-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.k-off-text h1 { font-size: clamp(30px, 3.2vw, 42px); }
+.k-off-text .k-sub { max-width: none; }
+.k-off .k-bed.is-free:hover { background: var(--paper); }
 .k-pick { justify-content: flex-start; align-items: stretch; text-align: left; gap: 18px; min-height: 0; }
 .k-pick-head h1 { font-size: clamp(28px, 3vw, 38px); }
 .k-pick-head .k-sub { max-width: none; margin-top: 4px; font-size: var(--fs-lg); }
@@ -519,15 +585,22 @@ body[data-screen="kiosk"] { overflow: hidden; }
 .k-zone h2 { font-size: var(--fs-lg); font-weight: 800; }
 .k-zone.is-other { opacity: 0.45; }
 .k-beds { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 12px; }
+/* 칸 크기에 맞춰 글자 크기가 바뀐다 (cqw·cqh = 칸 안쪽 너비·높이의 1%). 칸이 넉넉하면 원래 크기(번호 34px, 상태 24px) */
 .k-bed {
-  position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 6px;
+  position: relative; display: flex; container-type: size;
   min-height: 0; padding: 14px 16px; border: var(--line) dashed var(--ink-2); border-radius: 16px;
   background: var(--paper); text-align: left; touch-action: manipulation; white-space: nowrap;
   transition: transform 0.2s var(--ease), opacity 0.2s, background-color 0.15s, box-shadow 0.2s;
 }
-.k-bed-no { display: flex; align-items: baseline; gap: 8px; font-size: 34px; font-weight: 800; line-height: 1; }
-.k-bed-no small { font-size: var(--fs-lg); font-weight: 700; color: var(--ink-2); }
-.k-bed-state { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-lg); color: var(--ink-2); font-weight: 600; }
+.k-bed-in { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 6px; }
+.k-bed-no { display: flex; align-items: baseline; gap: 8px; max-width: 100%; font-size: min(34px, 40cqh, 24cqw); font-weight: 800; line-height: 1; }
+.k-bed-no small { font-size: min(var(--fs-lg), 0.86em); font-weight: 700; color: var(--ink-2); }
+.k-bed-state { display: inline-flex; align-items: center; gap: 0.3em; max-width: 100%; font-size: min(var(--fs-lg), 34cqh, 11.5cqw); line-height: 1.3; color: var(--ink-2); font-weight: 600; }
+.k-bed-state .ico { flex: none; }
+/* 그래도 넘치면 이름만 잘라서 "…"로 (칸 밖으로 나가지 않게, 경과 시간은 그대로) */
+.k-bed-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.k-bed-time { flex: none; }
+.k-bed-time::before { content: "·"; margin-right: 0.3em; }
 .k-bed.is-free:hover { background: var(--magnet-tint); }
 /* 빈 침대는 점선 칸, 사용 중인 침대는 채워진 회색 칸: 색이 없어도 형태로 구분된다 */
 .k-bed.is-busy { border-style: solid; border-color: var(--rule); background: var(--busy); color: var(--ink-3); cursor: default; }
@@ -541,9 +614,22 @@ body[data-screen="kiosk"] { overflow: hidden; }
 .k-bed-check .ico { width: 24px; height: 24px; stroke-width: 3; }
 /* 2층 침대: 한 테두리 안에 위층·아래층. 각 칸은 번호 줄과 상태 줄 두 줄 */
 .k-bunk { display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; padding: 6px; border: var(--line) solid var(--rule-strong); border-radius: 18px; min-height: 0; }
-.k-bunk .k-bed { padding: 8px 14px; gap: 2px; justify-content: center; min-width: 0; }
-.k-bunk .k-bed-no { font-size: 28px; }
+.k-bunk .k-bed { padding: 8px 14px; min-width: 0; }
+.k-bunk .k-bed-in { justify-content: center; gap: 2px; }
+.k-bunk .k-bed-no { font-size: min(28px, 40cqh, 24cqw); }
 .k-bunk .k-bed-check { top: 50%; transform: translateY(-50%); }
+/* 낮은 칸(2층 침대가 납작할 때): 번호와 상태를 한 줄로. (.k-bunk 규칙보다 뒤, 같은 우선순위로 둔다) */
+@container (max-height: 48px) {
+  .k-bed .k-bed-in { flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px; }
+  .k-bed .k-bed-no { flex: none; font-size: min(28px, 70cqh, 10cqw); }
+  .k-bed .k-bed-state { min-width: 0; font-size: min(var(--fs-lg), 55cqh, 9cqw); }
+}
+/* 좁고 높은 칸(세로 화면): 상태 글자를 많이 줄이는 대신 이름과 시간을 두 줄로 */
+@container (max-width: 180px) and (min-height: 110px) {
+  .k-bed .k-bed-state { flex-wrap: wrap; font-size: min(var(--fs-lg), 20cqw); }
+  .k-bed .k-bed-time { flex-basis: 100%; }
+  .k-bed .k-bed-time::before { content: none; }
+}
 .k-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-top: 4px; }
 .k-foot .btn-primary { min-width: 340px; }
 
@@ -579,9 +665,13 @@ body.is-offline .topbar { box-shadow: inset 0 -3px 0 var(--over); }
 @media (max-width: 1640px) {
   .tab .ico { display: none; }
   .free .split { display: none; }
+  /* 위쪽 바가 두 줄이 되지 않게 "알림음 테스트"는 스피커 그림만 (이름은 마우스를 올리면 보인다) */
+  .tb-btn { padding: 0; width: 48px; justify-content: center; }
+  .tb-btn span { display: none; }
 }
 @media (max-width: 1380px) {
   .scanbar input { width: 170px; }
+  .tab { padding: 0 12px; } /* 1366 화면에서도 위쪽 바가 한 줄에 들어가게 */
   .brand-text small { display: none; }
 }
 @media (max-width: 1180px) {
@@ -590,6 +680,12 @@ body.is-offline .topbar { box-shadow: inset 0 -3px 0 var(--over); }
   .zone-F { padding-left: 0; padding-top: 26px; border-left: 0; border-top: var(--line) solid var(--rule); }
   .k-stage { padding: 28px 28px; }
   .k-type { gap: 40px; }
+}
+/* 세로로 세운 태블릿·휴대폰: 근무 시간 밖 안내 띠를 작게 */
+@media (max-width: 1000px) {
+  .k-off-head { gap: 14px 18px; padding: 16px 18px; }
+  .k-off-mark { width: 64px; height: 64px; border-radius: 18px; }
+  .k-off-mark .ico { width: 38px; height: 38px; }
 }
 @media (max-width: 1100px) and (orientation: landscape) {
   .k-board { grid-template-columns: 1fr 1fr; }
@@ -605,9 +701,10 @@ body.is-offline .topbar { box-shadow: inset 0 -3px 0 var(--over); }
   .tab { flex: 1; justify-content: center; padding: 0 8px; }
   .tab .ico { display: block; }
   .tab span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .account span { display: none; }
+  .account span, .tb-btn span { display: none; }
   .workspace { padding: 0 8px 8px; }
   .view { padding: 18px 16px; }
+  .over-alerts { right: 16px; bottom: 16px; }
   .slots { grid-template-columns: 1fr; grid-auto-rows: minmax(260px, auto); }
   .bunk { grid-template-rows: auto auto auto; }
   .slot.is-tier { min-height: 150px; }
@@ -625,6 +722,8 @@ body.is-offline .topbar { box-shadow: inset 0 -3px 0 var(--over); }
   .kiosk { padding: 0 8px 8px; }
   .k-top { gap: 10px; min-height: 64px; }
   .k-free-split, .k-top .live span, .k-fs span { display: none; }
+  .duty-row { gap: 8px 10px; }
+  .duty-day { min-width: 100%; }
   .k-fs { padding: 0 12px; }
   .k-stage { padding: 20px 16px; }
   .k-type { flex-direction: column; align-items: center; text-align: center; }

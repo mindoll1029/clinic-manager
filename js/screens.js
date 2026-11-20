@@ -21,7 +21,7 @@
           '</form>' +
           '<details class="login-demo"><summary>' + window.icon('chevron') + '시제품 계정 보기</summary>' +
             '<table class="table table-compact"><thead><tr><th>아이디</th><th>비밀번호</th><th>열리는 화면</th></tr></thead><tbody>' +
-            [['admin', 'admin1234', '관리자 (모든 화면)'], ['nurse', 'nurse1234', '보건 선생님'], ['kiosk-nurse-room', 'kiosk1234', '학생 태블릿'], ['support-office', 'support1234', '학생지원실']]
+            [['admin', 'admin1234', '관리자 (모든 화면)'], ['nurse', 'nurse1234', '보건 선생님'], ['kiosk-nurse-room', 'kiosk1234', '학생 태블릿'], ['support-office', 'support1234', '학생지원실'], ['nurse-assistant', 'assist1234', '보건 조교 (학생지원실 화면)']]
               .map((r) => '<tr><td class="num"><button type="button" class="link" data-fill="' + r[0] + '|' + r[1] + '">' + r[0] + '</button></td><td class="num">' + r[1] + '</td><td>' + r[2] + '</td></tr>').join('') +
             '</tbody></table><p class="panel-note">관리번호(연장용)는 2580입니다. 설정에서 바꿀 수 있습니다.</p></details>' +
         '</section>' +
@@ -51,12 +51,14 @@
 
   // 초과 알림음 설정은 화면마다 따로 둔다 (보건 선생님 화면을 꺼도 학생지원실은 울리게 할 수 있다)
   const SOUND_KEY = { nurse: 'alertSound', support: 'alertSoundSupport' };
+  const NOTIFY_HIDE = 'clinic-manager.notify-bar-hidden.'; // 윈도우 알림 안내를 닫았는지 (이번 접속 동안)
 
   // ── 직원 화면 공통 껍데기 ──────────────────────────────────
   // cfg: { role, title, tabs: [{id,label,icon}], scan: bool, onTab(id, container) }
   function staffShell(root, ctx, cfg) {
     const soundKey = SOUND_KEY[cfg.role];
     const auth = ctx.auth;
+    const by = auth.role === 'admin' ? null : auth.source || null; // 기록에 남길 이름 (보건 조교)
     const adminBar = auth.role === 'admin' && cfg.role !== 'admin'
       ? '<div class="admin-bar">' + window.icon('users') + '<span>관리자로 <b>' + esc(cfg.title) + '</b>을 보는 중</span><a href="#/admin" class="link">관리자 화면으로</a></div>'
       : '';
@@ -74,16 +76,34 @@
           '<nav class="tb-right" aria-label="화면 메뉴">' +
             '<div class="tabs" role="tablist">' + cfg.tabs.map((t, i) =>
               '<button type="button" role="tab" class="tab" data-tab="' + t.id + '" aria-selected="' + (i === 0) + '">' + window.icon(t.icon) + '<span>' + esc(t.label) + '</span></button>').join('') + '</div>' +
-            (soundKey ? '<button type="button" class="icon-btn btn-ghost" data-sound aria-pressed="false"></button>' : '') +
+            (soundKey ? '<button type="button" class="tb-btn" data-sound-test aria-label="알림음 테스트" title="초과 알림과 알림음을 한 번 보여 줍니다">' + window.icon('volume') + '<span>알림음 테스트</span></button>' +
+              '<button type="button" class="icon-btn btn-ghost" data-sound aria-pressed="false"></button>' : '') +
             '<button type="button" class="account" data-account>' + window.icon('logout') + '<span>' + esc(auth.name) + '</span></button>' +
           '</nav>' +
         '</header>' +
+        (soundKey ? '<div class="notify-bar" data-notify-bar role="status" hidden></div>' : '') +
         '<main class="workspace" id="workspace"></main>' +
       '</div>';
 
     const ws = root.querySelector('#workspace');
     const freeEl = root.querySelector('.free');
     let current = null, view = null;
+    let lastActs = null; // 학생지원실: 연장·퇴실을 맡는지 (바뀌는 순간 알린다)
+    // 학생지원실 계정만 근무 시간에 따라 연장·퇴실이 열리고 닫힌다 (보건 조교는 언제나 할 수 있다)
+    const gated = cfg.role === 'support' && by !== 'assistant';
+
+    // 학생지원실 화면은 연장·퇴실을 맡기 시작하거나 끝낼 때 알림을 띄운다.
+    function watchDuty() {
+      if (!gated) return;
+      const d = Store.duty();
+      if (lastActs !== null && lastActs !== d.supportActs) {
+        App.sound.ok();
+        App.toast(d.supportActs
+          ? (d.on ? '보건 선생님 퇴근 ' + d.handoverMinutes + '분 전입니다. 이제 여기서 연장·퇴실할 수 있습니다' : '보건 선생님 근무 시간이 끝났습니다. 연장·퇴실은 여기서 합니다')
+          : '보건 선생님이 근무 중입니다. 연장·퇴실은 보건실에서 합니다');
+      }
+      lastActs = d.supportActs;
+    }
 
     function setTab(id) {
       current = id;
@@ -92,12 +112,33 @@
       const box = document.createElement('div');
       box.className = 'view view-' + id;
       ws.appendChild(box);
-      view = cfg.onTab(id, box) || null;
+      view = cfg.onTab(id, box, by) || null;
       updateFree();
     }
 
+    // 사용 시간이 지나는 순간 오른쪽 아래에 알린다. 현황판뿐 아니라 사용 기록·설정 탭을 보고 있어도 알린다.
+    // (화면을 연 뒤에 새로 초과된 침대만. 알림음은 설정이 켜져 있을 때만. 관리자 화면은 알리지 않는다)
+    let lastOver = null;
+    function watchOver(board, now) {
+      if (!soundKey) return;
+      const over = board.filter((b) => b.session && App.isOver(b.session, now));
+      if (lastOver) {
+        // 같은 순간에 여러 명이 넘으면 알림 하나(학생 목록)와 알림음 한 번
+        const fresh = over.filter((b) => !lastOver.has(b.session.id));
+        if (fresh.length) {
+          const sound = !!Store.settings()[soundKey];
+          if (sound) App.sound.alert();
+          App.alertOver(fresh.map((b) => ({ id: b.session.id, label: b.label, name: b.session.name, due: App.dueAt(b.session) })), { sound });
+        }
+      }
+      lastOver = new Set(over.map((b) => b.session.id));
+    }
+
     function updateFree() {
-      const sum = App.boardSummary(Store.board('nurse'), Store.now());
+      watchDuty();
+      const board = Store.board('nurse'), now = Store.now();
+      watchOver(board, now);
+      const sum = App.boardSummary(board, now);
       freeEl.innerHTML = '빈 침대 <b>' + sum.free + '</b><span class="of">/ ' + sum.total + '</span>' +
         '<span class="split">남 ' + sum.freeM + ' <span class="dot">·</span> 여 ' + sum.freeF + '</span>' +
         (sum.over ? '<span class="over-count">' + window.icon('clock') + '초과 ' + sum.over + '</span>' : '');
@@ -117,7 +158,43 @@
         paintSound();
         App.toast(on ? '초과 알림음을 켰습니다' : '초과 알림음을 껐습니다');
       }
+      // 알림음 테스트: 실제 초과 알림과 같은 자리·모양으로 한 번 보여 주고 알림음도 울린다 (허용했다면 윈도우 알림도)
+      if (e.target.closest('[data-sound-test]') && soundKey) {
+        await App.previewOverAlert(Store.settings()[soundKey]
+          ? '사용 시간이 지나면 이렇게 알립니다.'
+          : '지금은 알림음이 꺼져 있어서 실제로는 소리 없이 알림만 뜹니다. 종 버튼으로 켤 수 있습니다.');
+        paintNotify();
+      }
+      if (e.target.closest('[data-notify-allow]')) {
+        const r = await App.askNotify();
+        paintNotify();
+        App.toast(r === 'granted' ? '윈도우 알림을 켰습니다. 알림음 테스트로 확인해 보세요' : '윈도우 알림이 허용되지 않았습니다', r === 'granted' ? null : 'error');
+      }
+      if (e.target.closest('[data-notify-close]')) {
+        try { sessionStorage.setItem(NOTIFY_HIDE + App.notifyState(), '1'); } catch (err) { /* 저장 못 해도 이번만 닫는다 */ }
+        notifyBar.hidden = true;
+      }
     });
+
+    // 윈도우 알림 안내 띠 (보건 선생님·학생지원실 화면). 허용하면 사라진다. 닫으면 이번 접속 동안 숨긴다.
+    const notifyBar = root.querySelector('[data-notify-bar]');
+    function paintNotify() {
+      if (!notifyBar) return;
+      const st = App.notifyState();
+      let hidden = false;
+      try { hidden = sessionStorage.getItem(NOTIFY_HIDE + st) === '1'; } catch (err) { /* 무시 */ }
+      const html = st === 'default'
+        ? window.icon('bell') + '<span><b>윈도우 알림을 켜 주세요.</b> 창을 최소화하거나 다른 프로그램을 쓰는 중에도 사용 시간 초과를 알려 드립니다.</span>' +
+          '<button type="button" class="btn btn-primary btn-sm" data-notify-allow>알림 허용</button>'
+        : st === 'denied'
+          ? window.icon('bellOff') + '<span><b>윈도우 알림이 차단되어 있습니다.</b> 주소창 왼쪽 아이콘을 눌러 알림을 "허용"으로 바꿔 주세요.</span>'
+          : st === 'file'
+            ? window.icon('alert') + '<span><b>파일로 연 화면이라 윈도우 알림을 쓸 수 없습니다.</b> 링크(인터넷 주소)로 열면 창을 최소화해도 알림을 받을 수 있습니다.</span>'
+            : '';
+      notifyBar.hidden = !html || hidden;
+      notifyBar.innerHTML = html ? html + '<button type="button" class="icon-btn" data-notify-close aria-label="안내 닫기">' + window.icon('x') + '</button>' : '';
+    }
+    paintNotify();
 
     function paintSound() {
       const snd = root.querySelector('[data-sound]');
@@ -138,7 +215,7 @@
         const v = input.value.trim();
         if (!v) { input.focus(); return; }
         input.value = '';
-        await App.staffRegister(v, auth.role === 'admin' ? 'nurse' : cfg.role);
+        await App.staffRegister(v, auth.role === 'admin' ? 'nurse' : cfg.role, null, by);
         input.focus();
       });
     }
@@ -156,22 +233,21 @@
     if (scan) scan.no.focus();
 
     return {
-      refresh() { updateFree(); paintSound(); if (view && view.refresh) view.refresh(); },
+      refresh() { updateFree(); paintSound(); paintNotify(); if (view && view.refresh) view.refresh(); },
       tick() { updateFree(); if (view && view.tick) view.tick(); else if (view && view.refresh && current === 'board') view.refresh(); },
       destroy() { document.removeEventListener('keydown', onKey); },
     };
   }
 
-  function boardView(box, mode) {
+  // by: 기록에 남길 이름 (보건 조교 → 'assistant')
+  function boardView(box, mode, by) {
     box.innerHTML = '<div class="board" id="board-' + mode + '"></div>';
     const el = box.firstChild;
-    // 보건 선생님·학생지원실 화면: 사용 시간이 지나는 순간 알림(글)을 띄우고, 설정이 켜져 있으면 알림음도 울린다
-    const onOver = SOUND_KEY[mode] ? (b) => {
-      if (Store.settings()[SOUND_KEY[mode]]) App.sound.alert();
-      App.toast(b.label + ' 침대 ' + b.session.name + ' 학생의 사용 시간(' + App.hm(App.dueAt(b.session)) + '까지)이 지났습니다', 'error');
-    } : null;
-    App.bindBoardActions(el, mode === 'admin' ? 'nurse' : mode);
-    const draw = () => App.renderBoard(el, { mode: mode === 'admin' ? 'nurse' : mode, admin: mode === 'admin', onOver });
+    // 사용 시간 초과 알림은 staffShell(watchOver)이 탭과 상관없이 띄운다
+    App.bindBoardActions(el, mode === 'admin' ? 'nurse' : mode, by);
+    // 학생지원실: 보건 선생님 퇴근 10분 전부터(근무 시간 밖에는 언제나) 연장·퇴실 버튼을 보인다. 보건 조교는 언제나.
+    const draw = () => App.renderBoard(el, { mode: mode === 'admin' ? 'nurse' : mode, admin: mode === 'admin',
+      manage: mode === 'support' && (by === 'assistant' || Store.duty().supportActs) });
     draw();
     return { refresh: draw, tick: draw };
   }
@@ -190,13 +266,15 @@
   }
 
   // ── 학생지원실 ─────────────────────────────────────────────
+  // 보건 조교 계정도 이 화면을 쓴다. 학생지원실과 같지만 연장·퇴실은 근무 시간과 상관없이 언제나 된다.
+  // 상단 바에는 계정 이름이 보인다.
   function support(root, ctx) {
     return staffShell(root, ctx, {
-      role: 'support', title: '학생지원실 화면', place: '강의동 학생지원실', scan: true,
+      role: 'support', title: '학생지원실 화면', place: ctx.auth.role === 'support' ? ctx.auth.name : '강의동 학생지원실', scan: true,
       // 학생 명단은 관리자 화면에서 구글 시트로 불러온다 (학생지원실에서는 바꾸지 않는다)
       tabs: [{ id: 'board', label: '현황판', icon: 'bed' }, { id: 'records', label: '사용 기록', icon: 'list' }],
-      onTab(id, box) {
-        if (id === 'board') return boardView(box, 'support');
+      onTab(id, box, by) {
+        if (id === 'board') return boardView(box, 'support', by);
         if (id === 'records') return App.viewRecords(box, 'support');
       },
     });
@@ -225,9 +303,9 @@
 
   function screensHub(box) {
     const SCREENS = [
-      { route: '#/nurse', icon: 'monitor', name: '보건 선생님 화면', where: '보건실 PC', does: '전체 현황, 직접 등록, 연장·퇴실·이동·취소, 기록, 설정' },
-      { route: '#/kiosk', icon: 'tablet', name: '학생용 태블릿', where: '보건실 입구 태블릿 + 스캐너', does: '스캔 등록, 침대 고르기, 관리번호 연장, 퇴실' },
-      { route: '#/support', icon: 'building', name: '학생지원실 화면', where: '강의동 학생지원실 PC', does: '등록, 현황 확인, 등록 취소, 기록, 초과 알림' },
+      { route: '#/nurse', icon: 'monitor', name: '보건 선생님 화면', where: '보건실 PC', does: '전체 현황, 직접 등록, 연장·퇴실·이동·취소, 기록, 설정(근무 일정 포함)' },
+      { route: '#/kiosk', icon: 'tablet', name: '학생용 태블릿', where: '보건실 입구 태블릿 + 스캐너', does: '근무 시간: 스캔 등록, 침대 고르기, 관리번호 연장, 퇴실 · 그 밖: 현황만' },
+      { route: '#/support', icon: 'building', name: '학생지원실 화면', where: '강의동 학생지원실 PC, 보건 조교', does: '등록, 현황 확인, 등록 취소, 기록, 초과 알림 · 퇴근 10분 전부터 연장·퇴실' },
     ];
     function draw() {
       const sum = App.boardSummary(Store.board('nurse'), Store.now());
