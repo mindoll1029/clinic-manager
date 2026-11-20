@@ -158,7 +158,7 @@
           '<div class="k-scan-mark" aria-hidden="true">' + window.icon('scan') + '<span class="k-beam"></span></div>' +
           '<h1>학생증 바코드를<br>스캔해주세요</h1>' +
           '<p class="k-sub">처음 쉬러 왔을 때도, 다 쉬고 나갈 때도 스캔해요.</p>' +
-          '<button type="button" class="btn btn-ghost btn-xl" data-go="type">' + window.icon('keypad') + '<span>학번 직접 입력</span></button>' +
+          '<button type="button" class="btn btn-ghost btn-xl" data-go="type">' + window.icon('keypad') + '<span>학번 입력</span></button>' +
         '</section>';
       } else if (s.step === 'off') {
         // 근무 시간 밖: 현황만. 스캔하면 안내가 잠깐 흔들린다.
