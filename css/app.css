@@ -668,16 +668,6 @@ body[data-screen="kiosk"], body[data-screen="office"] { overflow: hidden; }
 .k-countdown span { display: block; height: 100%; background: var(--frame); transform-origin: left; animation: countdown 5s linear forwards; }
 @keyframes countdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
-/* 퇴실 요청 안내 창: [확인했어요]를 눌러야 닫힌다 */
-.k-modal { width: min(640px, calc(100vw - 48px)); padding: 44px 40px 40px; border: 0; border-radius: 28px; background: var(--paper); color: var(--ink); text-align: center; box-shadow: 0 30px 60px -20px var(--shadow-float); }
-.k-modal[open] { display: flex; flex-direction: column; align-items: center; gap: 20px; animation: sheet-in 0.22s var(--ease); }
-.k-modal::backdrop { background: var(--shade); }
-.k-modal h2 { font-size: clamp(32px, 3.6vw, 44px); font-weight: 800; line-height: 1.22; letter-spacing: -0.02em; }
-.k-modal .k-sub { max-width: none; }
-.k-modal .btn { min-width: 280px; margin-top: 8px; }
-.k-modal-mark { display: grid; place-items: center; width: 112px; height: 112px; border-radius: 28px; background: var(--frame); color: var(--magnet); }
-.k-modal-mark .ico { width: 64px; height: 64px; }
-
 /* ── 연결 끊김 ────────────────────────────────────────────── */
 body.is-offline .topbar { box-shadow: inset 0 -3px 0 var(--over); }
 

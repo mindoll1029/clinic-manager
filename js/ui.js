@@ -48,12 +48,12 @@
   // 정한 시간(10분)이 지나도 확인되지 않으면 늦음 → 잔디로 알린다.
   function isLeaving(s) { return !!(s && s.leaveAt); }
   function isLeaveLate(s, now) { return isLeaving(s) && now - s.leaveAt >= window.Store.LEAVE_ALERT_MINUTES * MIN; }
-  const LEAVE_FROM = { kiosk: '보건실 태블릿', office: '학생지원실 태블릿' };
+  const LEAVE_FROM = { kiosk: '보건실 태블릿', office: '학지실 태블릿' };
 
   // 요일 이름 (근무 일정 설정에서 쓴다)
   const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 
-  const SOURCE = { nurse: '보건 선생님', kiosk: '보건실 태블릿', office: '학생지원실 태블릿', support: '학생지원실', assistant: '보건 조교', admin: '관리자' };
+  const SOURCE = { nurse: '보건 선생님', kiosk: '보건실 태블릿', office: '학지실 태블릿', support: '학생지원실', assistant: '보건 조교', admin: '관리자' };
   const ZONE = { M: '남학생', F: '여학생' };
   const ROLE = { admin: '관리자', nurse: '보건 선생님', kiosk: '보건실 학생 태블릿', support: '학생지원실', office: '학생지원실 학생 태블릿' };
 

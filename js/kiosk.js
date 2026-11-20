@@ -1,6 +1,6 @@
 /* 학생용 태블릿 화면 (두 곳이 같은 코드를 쓴다). 학번은 스캔하거나 키패드로 입력한다. 연장은 없다 (PC에서만).
    - 보건실 태블릿 (#/kiosk): 사용 중이 아니면 침대 고르기 → 등록 (보건 선생님 근무 시간에만).
-     사용 중이면 "퇴실을 요청하겠습니까?" → [예] → 안내 창 → [확인했어요]를 누르면 모든 화면에 "퇴실 중"으로 보인다.
+     사용 중이면 "퇴실을 요청하겠습니까?" → [예]를 누르면 모든 화면에 "퇴실 중"으로 보이고, "학지실로 이동하세요"를 5초 동안 보여 준다.
      퇴실 요청은 근무 시간 밖에도 된다. 근무 시간 밖에는 현황과 퇴실 요청만 (등록은 학생지원실에서).
    - 학생지원실 태블릿 (#/office): 언제나 열려 있다. 사용 중이 아니면 침대 고르기 → 등록,
      사용 중(퇴실 중 포함)이면 "퇴실하겠습니까?" → [예] → 바로 퇴실 (학생이 학생지원실에 와 있으므로).
@@ -69,20 +69,12 @@
         '</header>' +
         '<main class="k-stage"></main>' +
         '<input class="k-scan-input" inputmode="none" autocomplete="off" aria-hidden="true" tabindex="-1">' +
-        // 퇴실 요청 안내 창: [확인했어요]를 눌러야 퇴실 중이 된다
-        '<dialog class="k-modal" aria-labelledby="k-modal-title"></dialog>' +
       '</div>';
     const stage = root.querySelector('.k-stage');
     const freeEl = root.querySelector('.k-free');
     const hidden = root.querySelector('.k-scan-input');
-    const modal = root.querySelector('.k-modal');
-    modal.addEventListener('cancel', (e) => e.preventDefault()); // Esc로 닫지 않는다 (확인 버튼 또는 시간이 지나면 닫힌다)
-
-    function closeModal() { if (modal.open) modal.close(); }
-
     function go(next) {
       clearTimeout(stepTimer);
-      closeModal();
       // 근무 시간 밖에는 처음 화면 대신 현황 화면(off)을 연다 (학생지원실 태블릿은 언제나 처음 화면)
       const on = dutyOn();
       if (next.step === 'scan' && !on) next = { step: 'off' };
@@ -276,25 +268,14 @@
       go({ step: 'pick', student: st, bedId: null });
     }
 
-    // 보건실 태블릿: [예]를 누르면 안내 창. [확인했어요]를 눌러야 퇴실 요청이 저장된다 ("퇴실 중").
-    function openLeaveModal() {
-      modal.innerHTML =
-        '<div class="k-modal-mark" aria-hidden="true">' + window.icon('building') + '</div>' +
-        '<h2 id="k-modal-title">학생지원실로 이동하세요</h2>' +
-        '<p class="k-sub">강의동 ' + OFFICE_HOW + '</p>' +
-        '<button type="button" class="btn btn-primary btn-xl" data-act="leave-ack">' + window.icon('check') + '<span>확인했어요</span></button>';
-      modal.showModal();
-      modal.querySelector('[data-act=leave-ack]').focus();
-      armIdle();
-    }
-
-    function ackLeave() {
+    // 보건실 태블릿: [예]를 누르면 퇴실 요청을 저장하고("퇴실 중") "학지실로 이동하세요"를 5초 동안 보여 준 뒤 처음 화면으로
+    function requestHere() {
       try {
         selfWrite = true;
         try { Store.requestLeave({ studentNo: state.student.no, from: place }); }
         finally { selfWrite = false; }
         App.sound.ok();
-        go({ step: 'done', mark: 'logout', title: '퇴실을 요청했어요', sub: '학생지원실로 가세요. ' + OFFICE_HOW });
+        go({ step: 'done', mark: 'building', title: '학지실로 이동하세요', sub: '강의동 ' + OFFICE_HOW });
       } catch (e) {
         App.sound.error();
         go({ step: 'error', message: say(e) });
@@ -367,8 +348,7 @@
           else go({ step: 'error', message: say(e) });
         }
       }
-      if (act && act.dataset.act === 'leave' && state.step === 'confirmLeave') return office ? endHere() : openLeaveModal();
-      if (act && act.dataset.act === 'leave-ack' && state.step === 'confirmLeave') return ackLeave();
+      if (act && act.dataset.act === 'leave' && state.step === 'confirmLeave') return office ? endHere() : requestHere();
       keepFocus();
     });
 
@@ -434,7 +414,7 @@
         topCounts();
         App.watchLeave(); // 퇴실 중으로 10분이 지난 학생은 잔디로 알린다 (열린 화면 중 한 곳만 보낸다)
         if (syncDuty()) return;
-        if (selfWrite || modal.open) return; // 안내 창이 열려 있으면 화면을 바꾸지 않는다
+        if (selfWrite) return;
         if (state.step === 'off') draw();
         else if (state.step === 'pick') {
           const still = state.bedId && Store.board('kiosk').find((b) => b.id === state.bedId && !b.session);
@@ -452,7 +432,6 @@
       },
       destroy() {
         clearTimeout(idleTimer); clearTimeout(stepTimer);
-        closeModal();
         document.removeEventListener('keydown', onKey);
         document.removeEventListener('pointerdown', onPointer);
         document.removeEventListener('fullscreenchange', paintFs);
